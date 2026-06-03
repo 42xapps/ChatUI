@@ -13,21 +13,23 @@ struct AttachmentsPage: View {
 
     var body: some View {
         if attachment.type == .image {
-            ZoomableContainer {
-                CachedAsyncImage(
-                    url: attachment.full,
-                    cacheKey: attachment.fullCacheKey
-                ) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    default:
-                        ActivityIndicator()
-                    }
+            // ZoomableContainer {
+            CachedAsyncImage(
+                url: attachment.full,
+                cacheKey: attachment.fullCacheKey
+            ) { phase in
+                switch phase {
+                case .success(let image):
+                    image
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                default:
+                    ActivityIndicator()
                 }
             }
+            .background(Color.clear)
+            // }
         } else if attachment.type == .video {
             VideoView(viewModel: VideoViewModel(attachment: attachment))
         } else {

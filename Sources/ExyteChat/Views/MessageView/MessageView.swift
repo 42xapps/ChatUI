@@ -24,7 +24,7 @@ struct MessageView: View {
 
     static let widthWithMedia: CGFloat = 204
     static let statusViewWidth: CGFloat = 10
-    static let horizontalScreenEdgePadding: CGFloat = 12
+    static let horizontalScreenEdgePadding: CGFloat = 6
     static let horizontalTextPadding: CGFloat = 12
     static let timeViewTextPadding: CGFloat = 12
     static let horizontalSpacing: CGFloat = horizontalScreenEdgePadding / 2
@@ -39,6 +39,27 @@ struct MessageView: View {
         message.attachments.count > 1 ? MessageView.attachmentPadding * 2 : 0
     }
 
+    var fullBleedInsets: EdgeInsets {
+        let edgePadding = MessageView.horizontalScreenEdgePadding
+        let bubblePadding = MessageView.horizontalBubblePadding
+
+        if message.user.isCurrentUser {
+            return EdgeInsets(
+                top: 0,
+                leading: -(edgePadding + bubblePadding),
+                bottom: 0,
+                trailing: 0
+            )
+        } else {
+            return EdgeInsets(
+                top: 0,
+                leading: 0,
+                bottom: 0,
+                trailing: -(edgePadding + bubblePadding)
+            )
+        }
+    }
+
     var timeViewArrangement: TimeViewArrangement {
         let text = message.attributedText
         if !text.urls.isEmpty && params.linkPreviewLimit > 0 {
@@ -46,7 +67,8 @@ struct MessageView: View {
         }
 
         let isCurrentUser = message.user.isCurrentUser
-        let bubblePaddings = MessageView.horizontalScreenEdgePadding * 2 + MessageView.horizontalBubblePadding
+        let bubblePaddings =
+            MessageView.horizontalScreenEdgePadding * 2 + MessageView.horizontalBubblePadding
         let avatarViewWithPaddings = params.avatarSize + MessageView.horizontalSpacing
         let statusViewWithPaddings = MessageView.statusViewWidth + MessageView.horizontalSpacing
         let textPaddings = MessageView.horizontalTextPadding * 2
@@ -57,7 +79,8 @@ struct MessageView: View {
             - (isCurrentUser ? MessageView.statusViewWidth : 0)
             - textPaddings
 
-        let maxWidth = message.attachments.isEmpty
+        let maxWidth =
+            message.attachments.isEmpty
             ? widthWithoutMedia
             : MessageView.widthWithMedia - textPaddings
 
@@ -65,7 +88,10 @@ struct MessageView: View {
         let lastLineWidth = text.lastLineWidth(labelWidth: maxWidth, font: params.font)
         let numberOfLines = text.numberOfLines(labelWidth: maxWidth, font: params.font)
 
-        let timeWidth = AttributedString(message.formattedDate).width(withConstrainedWidth: maxWidth, font: params.timeFont) + MessageView.timeViewTextPadding * 2
+        let timeWidth =
+            AttributedString(message.formattedDate).width(
+                withConstrainedWidth: maxWidth, font: params.timeFont) + MessageView
+            .timeViewTextPadding * 2
 
         if numberOfLines == 1, finalWidth + CGFloat(timeWidth) < maxWidth {
             return .hstack
@@ -80,7 +106,10 @@ struct MessageView: View {
         struct Cache { static var value: CGFloat? }
         if let value = Cache.value { return value }
 
-        let value = AttributedString("🙃️️️️").width(withConstrainedWidth: UIScreen.main.bounds.width, font: params.font) + ReactionBubble.padding * 2
+        let value =
+            AttributedString("🙃️️️️").width(
+                withConstrainedWidth: UIScreen.main.bounds.width, font: params.font)
+            + ReactionBubble.padding * 2
 
         Cache.value = value
         return value
@@ -121,17 +150,21 @@ struct MessageView: View {
                         }
                 }
 
+                if message.attachments.count >= 2 {
+                    attachmentsView(message, isFullBleed: true)
+                }
+
                 bubbleView(message)
             }
 
-            if message.user.isCurrentUser, let status = message.status {
-                MessageStatusView(status: status) {
-                    if case let .error(draft) = status {
-                        viewModel.sendMessage(draft)
-                    }
-                }
-                .viewSize(MessageView.statusViewWidth)
-            }
+            // if message.user.isCurrentUser, let status = message.status {
+            //     MessageStatusView(status: status) {
+            //         if case let .error(draft) = status {
+            //             viewModel.sendMessage(draft)
+            //         }
+            //     }
+            //     .viewSize(MessageView.statusViewWidth)
+            // }
         }
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
@@ -167,7 +200,7 @@ struct MessageView: View {
                     giphyView(giphyMediaId)
                 }
 
-                if !message.attachments.isEmpty {
+                if !message.attachments.isEmpty && message.attachments.count < 2 {
                     attachmentsView(message)
                 }
 
@@ -184,7 +217,11 @@ struct MessageView: View {
                     }
                 }
             }
-            .padding(.top, (params.showUsername && !message.user.isCurrentUser) || message.attachments.isEmpty ? 8 : 0)
+            .padding(
+                .top,
+                (params.showUsername && !message.user.isCurrentUser) || message.attachments.isEmpty
+                    ? 8 : 0
+            )
             .padding(.bottom, message.hasText ? 8 : 0)
             .bubbleBackground(message, params: params, theme: theme)
             .zIndex(0)
@@ -232,11 +269,14 @@ struct MessageView: View {
                 if let builder = params.avatarBuilder {
                     builder(message.user)
                 } else if let url = message.user.avatarURL {
-                    AvatarImageView(url: url, avatarSize: params.avatarSize, avatarCacheKey: message.user.avatarCacheKey)
-                        .contentShape(Circle())
-                        .onTapGesture {
-                            params.tapAvatarClosure?(message.user, message.id)
-                        }
+                    AvatarImageView(
+                        url: url, avatarSize: params.avatarSize,
+                        avatarCacheKey: message.user.avatarCacheKey
+                    )
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        params.tapAvatarClosure?(message.user, message.id)
+                    }
                 } else {
                     AvatarNameView(name: message.user.name, avatarSize: params.avatarSize)
                         .contentShape(Circle())
@@ -252,8 +292,9 @@ struct MessageView: View {
     }
 
     @ViewBuilder
-    func attachmentsView(_ message: Message) -> some View {
-        AttachmentsGrid(attachments: message.attachments, isCurrentUser: message.user.isCurrentUser) { attachment, isCancel in
+    func attachmentsView(_ message: Message, isFullBleed: Bool = false) -> some View {
+        AttachmentsGrid(attachments: message.attachments, isCurrentUser: message.user.isCurrentUser)
+        { attachment, isCancel in
             if isCancel {
                 let update = AttachmentUploadUpdate(
                     messageId: message.id,
@@ -265,18 +306,17 @@ struct MessageView: View {
                 viewModel.presentAttachmentFullScreen(attachment)
             }
         }
-        .applyIf(message.attachments.count > 1) {
+        .applyIf(!isFullBleed && message.attachments.count > 1) {
             $0
                 .padding(.top, MessageView.attachmentPadding)
                 .padding(.horizontal, MessageView.attachmentPadding)
         }
-        .overlay(alignment: .bottomTrailing) {
-            if !message.hasText {
-                messageTimeView(needsCapsule: true)
-                    .padding(4)
-            }
-        }
         .contentShape(Rectangle())
+        .applyIf(isFullBleed) {
+            $0
+                .frame(maxWidth: .infinity)
+                .padding(fullBleedInsets)
+        }
     }
 
     @ViewBuilder
@@ -301,29 +341,29 @@ struct MessageView: View {
         let timeView = messageTimeView()
             .padding(.horizontal, MessageView.timeViewTextPadding)
 
-            Group {
-                switch timeViewArrangement {
-                case .hstack:
-                    HStack(alignment: .lastTextBaseline, spacing: 0) {
-                        messageView
-                            .lineLimit(1)
-                        if !message.attachments.isEmpty {
-                            Spacer()
-                        }
-                        timeView
-                    }
-                case .vstack:
-                    VStack(alignment: .trailing, spacing: 4) {
-                        messageView
-                        timeView
-                    }
-                case .overlay:
+        Group {
+            switch timeViewArrangement {
+            case .hstack:
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
                     messageView
-                        .overlay(alignment: .bottomTrailing) {
-                            timeView
-                        }
+                        .lineLimit(1)
+                    if !message.attachments.isEmpty {
+                        Spacer()
+                    }
+                    timeView
                 }
+            case .vstack:
+                VStack(alignment: .trailing, spacing: 4) {
+                    messageView
+                    timeView
+                }
+            case .overlay:
+                messageView
+                    .overlay(alignment: .bottomTrailing) {
+                        timeView
+                    }
             }
+        }
     }
 
     @ViewBuilder
@@ -345,7 +385,8 @@ struct MessageView: View {
         if params.showTimeView {
             Group {
                 if needsCapsule {
-                    MessageTimeWithCapsuleView(text: message.formattedDate, isCurrentUser: message.user.isCurrentUser)
+                    MessageTimeWithCapsuleView(
+                        text: message.formattedDate, isCurrentUser: message.user.isCurrentUser)
                 } else {
                     MessageTimeView(text: message.formattedDate, userType: message.user.type)
                 }
@@ -358,16 +399,21 @@ struct MessageView: View {
 extension View {
 
     @ViewBuilder
-    func bubbleBackground(_ message: Message, params: MessageCustomizationParameters, theme: ChatTheme, isReply: Bool = false) -> some View {
+    func bubbleBackground(
+        _ message: Message, params: MessageCustomizationParameters, theme: ChatTheme,
+        isReply: Bool = false
+    ) -> some View {
         let radius: CGFloat = !message.attachments.isEmpty ? 12 : 20
         let additionalMediaInset: CGFloat = message.attachments.count > 1 ? 2 : 0
         self.frame(
             width: message.attachments.isEmpty
-            ? nil : MessageView.widthWithMedia + additionalMediaInset
+                ? nil : MessageView.widthWithMedia + additionalMediaInset
         )
         .foregroundColor(theme.colors.messageText(message.user.type))
         .background {
-            if (params.showUsername && !message.user.isCurrentUser) || isReply || message.hasText || message.recording != nil {
+            if (params.showUsername && !message.user.isCurrentUser) || isReply || message.hasText
+                || message.recording != nil
+            {
                 RoundedRectangle(cornerRadius: radius)
                     .foregroundColor(theme.colors.messageBG(message.user.type))
                     .opacity(isReply ? theme.style.replyOpacity : 1)
@@ -446,11 +492,11 @@ extension View {
 //            status: .read,
 //            text: extraShortTextWithNewline
 //        )
-//        
+//
 //        static var previews: some View {
 //            ZStack {
 //                Color.yellow.ignoresSafeArea()
-//                
+//
 //                VStack {
 //                    MessageView(
 //                        viewModel: ChatViewModel(),
@@ -467,7 +513,7 @@ extension View {
 //                        messageLinkPreviewLimit: 8,
 //                        font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
 //                    )
-//                    
+//
 //                    MessageView(
 //                        viewModel: ChatViewModel(),
 //                        message: replyedMessage,
@@ -484,7 +530,7 @@ extension View {
 //                        font: UIFontMetrics.default.scaledFont(for: UIFont.systemFont(ofSize: 15))
 //                    )
 //                }
-//                
+//
 //            }
 //        }
 //    }

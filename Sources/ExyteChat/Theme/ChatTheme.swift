@@ -7,32 +7,32 @@
 
 import SwiftUI
 
-public extension EnvironmentValues {
+extension EnvironmentValues {
     #if swift(>=6.0)
-    @Entry var chatTheme = ChatTheme()
-    @Entry var giphyConfig = GiphyConfiguration()
+        @Entry public var chatTheme = ChatTheme()
+        @Entry public var giphyConfig = GiphyConfiguration()
     #else
-    var chatTheme: ChatTheme {
-        get { self[ChatThemeKey.self] }
-        set { self[ChatThemeKey.self] = newValue }
-    }
+        public var chatTheme: ChatTheme {
+            get { self[ChatThemeKey.self] }
+            set { self[ChatThemeKey.self] = newValue }
+        }
 
-    var giphyConfig: GiphyConfiguration {
-        get { self[GiphyConfigurationKey.self] }
-        set { self[GiphyConfigurationKey.self] = newValue }
-    }
+        public var giphyConfig: GiphyConfiguration {
+            get { self[GiphyConfigurationKey.self] }
+            set { self[GiphyConfigurationKey.self] = newValue }
+        }
     #endif
 }
 
 // Define keys only for older versions
 #if swift(<6.0)
-@preconcurrency public struct ChatThemeKey: EnvironmentKey {
-    public static let defaultValue = ChatTheme()
-}
+    @preconcurrency public struct ChatThemeKey: EnvironmentKey {
+        public static let defaultValue = ChatTheme()
+    }
 
-public struct GiphyConfigurationKey: EnvironmentKey {
-    public static let defaultValue = GiphyConfiguration()
-}
+    public struct GiphyConfigurationKey: EnvironmentKey {
+        public static let defaultValue = GiphyConfiguration()
+    }
 #endif
 
 extension View {
@@ -71,7 +71,7 @@ public struct ChatTheme {
         self.images = images
         self.colors = colors
     }
-    
+
     internal init(accentColor: Color, images: ChatTheme.Images) {
         self.init(
             colors: .init(
@@ -83,11 +83,16 @@ public struct ChatTheme {
             images: images
         )
     }
-    
+
     @available(iOS 18.0, *)
-    internal init(accentColor: Color, background: ThemedBackgroundStyle = .mixedWithAccentColor(), improveContrast: Bool) {
-        let backgroundColor: Color = background.getBackgroundColor(withAccent: accentColor, improveContrast: improveContrast)
-        let friendMessageColor: Color = background.getFriendMessageColor(improveContrast: improveContrast, background: backgroundColor)
+    internal init(
+        accentColor: Color, background: ThemedBackgroundStyle = .mixedWithAccentColor(),
+        improveContrast: Bool
+    ) {
+        let backgroundColor: Color = background.getBackgroundColor(
+            withAccent: accentColor, improveContrast: improveContrast)
+        let friendMessageColor: Color = background.getFriendMessageColor(
+            improveContrast: improveContrast, background: backgroundColor)
         self.init(
             colors: .init(
                 mainBG: backgroundColor,
@@ -117,7 +122,7 @@ public struct ChatTheme {
         public var messageFriendBG: Color
         public var messageFriendText: Color
         public var messageFriendTimeText: Color
-        
+
         public var messageSystemBG: Color
         public var messageSystemText: Color
         public var messageSystemTimeText: Color
@@ -125,6 +130,7 @@ public struct ChatTheme {
         public var inputBG: Color
         public var inputText: Color
         public var inputPlaceholderText: Color
+        public var inputIcon: Color
 
         public var inputSignatureBG: Color
         public var inputSignatureText: Color
@@ -145,12 +151,12 @@ public struct ChatTheme {
             mainTint: Color = Color("inputPlaceholderText", bundle: .current),
             mainText: Color = Color("mainText", bundle: .current),
             mainCaptionText: Color = Color("mainCaptionText", bundle: .current),
-            messageMyBG: Color = Color("messageMyBG", bundle: .current),
+            messageMyBG: Color = Color(red: 245 / 255, green: 245 / 255, blue: 245 / 255),
             messageReadStatus: Color = Color("messageReadStatus", bundle: .current),
-            messageMyText: Color = Color.white,
+            messageMyText: Color = Color.black,
             messageMyTimeText: Color = Color("messageMyTimeText", bundle: .current),
-            messageFriendBG: Color = Color("messageFriendBG", bundle: .current),
-            messageFriendText: Color = Color("mainText", bundle: .current),
+            messageFriendBG: Color = Color.clear,
+            messageFriendText: Color = Color.black,
             messageFriendTimeText: Color = Color("messageFriendTimeText", bundle: .current),
             messageSystemBG: Color = Color("messageFriendBG", bundle: .current),
             messageSystemText: Color = Color("mainText", bundle: .current),
@@ -158,6 +164,7 @@ public struct ChatTheme {
             inputBG: Color = Color("inputBG", bundle: .current),
             inputText: Color = Color("mainText", bundle: .current),
             inputPlaceholderText: Color = Color("inputPlaceholderText", bundle: .current),
+            inputIcon: Color = Color("inputPlaceholderText", bundle: .current),
             inputSignatureBG: Color = Color("inputBG", bundle: .current),
             inputSignatureText: Color = Color("mainText", bundle: .current),
             inputSignaturePlaceholderText: Color = Color("inputPlaceholderText", bundle: .current),
@@ -186,6 +193,7 @@ public struct ChatTheme {
             self.inputBG = inputBG
             self.inputText = inputText
             self.inputPlaceholderText = inputPlaceholderText
+            self.inputIcon = inputIcon
             self.inputSignatureBG = inputSignatureBG
             self.inputSignatureText = inputSignatureText
             self.inputSignaturePlaceholderText = inputSignaturePlaceholderText
@@ -197,7 +205,7 @@ public struct ChatTheme {
             self.sendButtonBackground = sendButtonBackground
             self.recordDot = recordDot
         }
-        
+
         public init(copy: Colors, mainBG: Color) {
             self.mainBG = mainBG
             self.mainTint = copy.mainTint
@@ -216,6 +224,7 @@ public struct ChatTheme {
             self.inputBG = copy.inputBG
             self.inputText = copy.inputText
             self.inputPlaceholderText = copy.inputPlaceholderText
+            self.inputIcon = copy.inputIcon
             self.inputSignatureBG = copy.inputSignatureBG
             self.inputSignatureText = copy.inputSignatureText
             self.inputSignaturePlaceholderText = copy.inputSignaturePlaceholderText
@@ -230,9 +239,9 @@ public struct ChatTheme {
     }
 
     public struct Images {
-      
+
         public struct Background {
-            
+
             let safeAreaRegions: SafeAreaRegions
             let safeAreaEdges: Edge.Set
             let portraitBackgroundLight: Image
@@ -328,9 +337,9 @@ public struct ChatTheme {
             public var cancelReply: Image
             public var replyToMessage: Image
         }
-      
+
         public var background: Background? = nil
-  
+
         public var backButton: Image
         public var scrollToBottom: Image
 
@@ -398,7 +407,7 @@ public struct ChatTheme {
         ) {
             self.backButton = backButton ?? Image("backArrow", bundle: .current)
             self.scrollToBottom = scrollToBottom ?? Image(systemName: "chevron.down")
-            
+
             self.background = background
 
             self.attachMenu = AttachMenu(
@@ -445,7 +454,8 @@ public struct ChatTheme {
                 playVideo: playVideo ?? Image(systemName: "play.circle.fill"),
                 read: read ?? Image(uiImage: UIImage(named: "checkAll", in: .current, with: nil)!),
                 sending: sending ?? Image(systemName: "clock"),
-                delivered: delivered ?? Image(uiImage: UIImage(named: "checkAll", in: .current, with: nil)!),
+                delivered: delivered
+                    ?? Image(uiImage: UIImage(named: "checkAll", in: .current, with: nil)!),
                 sent: sent ?? Image(uiImage: UIImage(named: "check", in: .current, with: nil)!)
             )
 
@@ -474,10 +484,10 @@ public struct ChatTheme {
             )
         }
     }
-    
+
     public struct Style {
         public var replyOpacity: Double
-        
+
         public init(replyOpacity: Double = 0.8) {
             self.replyOpacity = replyOpacity
         }

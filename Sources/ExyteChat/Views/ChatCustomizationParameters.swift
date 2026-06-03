@@ -5,8 +5,8 @@
 //  Created by Alisa Mylnikova on 02.04.2026.
 //
 
-import SwiftUI
 import ExyteMediaPicker
+import SwiftUI
 
 struct ChatCustomizationParameters {
     var isListAboveInputView: Bool = true
@@ -21,13 +21,13 @@ struct ChatCustomizationParameters {
     var contentInsets: UIEdgeInsets = .zero
 
     var scrollToParams: ScrollToParams?
-    var onContentOffsetChange: ((CGFloat) -> Void)? // Internal → External
+    var onContentOffsetChange: ((CGFloat) -> Void)?  // Internal → External
     var onWillDisplayCell: ((Message) -> Void)?
     var onTransactionReady: ((TableUpdateTransaction) -> Void)?
 
     var olderMessagesPaginationHandler: PaginationHandler?
     var newerMessagesPaginationHandler: PaginationHandler?
-    var localization = ChatLocalization.defaultLocalization // these can be localized in the Localizable.strings files
+    var localization = ChatLocalization.defaultLocalization  // these can be localized in the Localizable.strings files
     var reactionDelegate: ReactionDelegate?
     var listSwipeActions = ListSwipeActions()
 }
@@ -67,12 +67,12 @@ struct MessageCustomizationParameters {
     var showAvatar = true
     var avatarSize: CGFloat = 32
     var tapAvatarClosure: ChatView.TapAvatarClosure?
-    var avatarBuilder: ((User)->(AnyView))?
+    var avatarBuilder: ((User) -> (AnyView))?
 }
 
 struct InputViewCustomizationParameters {
-    var externalInputText: String? // External → Internal
-    var onInputTextChange: ((String) -> Void)? // Internal → External
+    var externalInputText: String?  // External → Internal
+    var onInputTextChange: ((String) -> Void)?  // Internal → External
     var availableInputs: [AvailableInputType] = [.text, .audio, .media]
     var recorderSettings = RecorderSettings()
     var mediaPickerParameters = MediaPickerParameters()

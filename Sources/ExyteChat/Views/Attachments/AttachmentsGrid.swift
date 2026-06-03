@@ -9,8 +9,7 @@ struct AttachmentsGrid: View {
     let isCurrentUser: Bool
     let maxImages: Int = 4 // TODO: Make injectable
 
-    private let single: (Attachment)?
-    private let grid: [Attachment]
+    private let attachmentsToShow: [Attachment]
     private let onlyOne: Bool
 
     private let hidden: String?
@@ -21,85 +20,67 @@ struct AttachmentsGrid: View {
         var toShow = attachments
 
         if toShow.count > maxImages {
-            toShow = attachments.prefix(maxImages).map({ $0 })
+            toShow = Array(attachments.prefix(maxImages))
             hidden = "+\(attachments.count - (maxImages - 1))"
-            showMoreAttachmentId = attachments[safe: (maxImages - 1)]?.id
+            showMoreAttachmentId = toShow.last?.id
         } else {
             hidden = nil
             showMoreAttachmentId = nil
         }
-        if toShow.count % 2 == 0 {
-            single = nil
-            grid = toShow
-        } else {
-            single = toShow.first
-            grid = toShow.dropFirst().map { $0 }
-        }
+
+        self.attachmentsToShow = toShow
         self.onlyOne = attachments.count == 1
         self.onTap = onTap
         self.isCurrentUser = isCurrentUser
     }
 
-    var columns: [GridItem] {
-        [GridItem(.flexible()), GridItem(.flexible())]
-    }
-
     var body: some View {
-        VStack(spacing: 4) {
-            if let attachment = single {
-                AttachmentCell(attachment: attachment, size: CGSize(width: 204, height: grid.isEmpty ? 200 : 100), showCancel: isCurrentUser, onTap: onTap)
-                    .clipped()
-                    .cornerRadius(onlyOne ? 0 : 12)
-            }
-            if !grid.isEmpty {
-                ForEach(pair(), id: \.id) { pair in
-                    HStack(spacing: 4) {
-                        AttachmentCell(attachment: pair.left, size: CGSize(width: 100, height: 100), showCancel: isCurrentUser, onTap: onTap)
-                            .clipped()
-                            .cornerRadius(12)
-                        AttachmentCell(attachment: pair.right, size: CGSize(width: 100, height: 100), showCancel: isCurrentUser, onTap: onTap)
-                            .clipped()
-                            .overlay {
-                                if pair.right.id == showMoreAttachmentId, let hidden = hidden {
-                                    ZStack {
-                                        RadialGradient(
-                                            colors: [
-                                                .black.opacity(0.8),
-                                                .black.opacity(0.6),
-                                            ],
-                                            center: .center,
-                                            startRadius: 0,
-                                            endRadius: 90
-                                        )
-                                        Text(hidden)
-                                            .font(.body)
-                                            .bold()
-                                            .foregroundColor(.white)
-                                    }
-                                    .allowsHitTesting(false)
+        if onlyOne, let attachment = attachmentsToShow.first {
+            AttachmentCell(
+                attachment: attachment,
+                size: CGSize(width: 204, height: 200),
+                showCancel: isCurrentUser,
+                onTap: onTap
+            )
+            .clipped()
+            .cornerRadius(0)
+        } else if !attachmentsToShow.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(attachmentsToShow) { attachment in
+                        AttachmentCell(
+                            attachment: attachment,
+                            size: CGSize(width: 120, height: 180),
+                            showCancel: isCurrentUser,
+                            onTap: onTap
+                        )
+                        .clipped()
+                        .overlay {
+                            if attachment.id == showMoreAttachmentId, let hidden = hidden {
+                                ZStack {
+                                    RadialGradient(
+                                        colors: [
+                                            .black.opacity(0.8),
+                                            .black.opacity(0.6),
+                                        ],
+                                        center: .center,
+                                        startRadius: 0,
+                                        endRadius: 90
+                                    )
+                                    Text(hidden)
+                                        .font(.body)
+                                        .bold()
+                                        .foregroundColor(.white)
                                 }
+                                .allowsHitTesting(false)
                             }
-                            .cornerRadius(12)
+                        }
+                        .cornerRadius(12)
                     }
                 }
             }
+            .environment(\.layoutDirection, isCurrentUser ? .rightToLeft : .leftToRight)
         }
-    }
-}
-
-private extension AttachmentsGrid {
-    func pair() -> Array<AttachmentsPair> {
-        return stride(from: 0, to: grid.count - 1, by: 2)
-            .map { AttachmentsPair(left: grid[$0], right: grid[$0+1]) }
-    }
-}
-
-struct AttachmentsPair {
-    let left: Attachment
-    let right: Attachment
-
-    var id: String {
-        left.id + "+" + right.id
     }
 }
 

@@ -5,28 +5,30 @@
 //  Created by Alisa Mylnikova on 20.04.2022.
 //
 
-import SwiftUI
-import GiphyUISDK
 import ExyteMediaPicker
+import GiphyUISDK
+import SwiftUI
 
 public typealias MediaPickerLiveCameraStyle = LiveCameraCellStyle
 public typealias MediaPickerSelectionParameters = SelectionParameters
 
 public enum ChatType: CaseIterable, Sendable {
-    case conversation // the latest message is at the bottom, new messages appear from the bottom
-    case comments // the latest message is at the top, new messages appear from the top
+    case conversation  // the latest message is at the bottom, new messages appear from the bottom
+    case comments  // the latest message is at the top, new messages appear from the top
 }
 
 public enum ReplyMode: CaseIterable, Sendable {
-    case quote // when replying to message A, new message will appear as the newest message, quoting message A in its body
-    case answer // when replying to message A, new message with appear direclty below message A as a separate cell without duplicating message A in its body
+    case quote  // when replying to message A, new message will appear as the newest message, quoting message A in its body
+    case answer  // when replying to message A, new message with appear direclty below message A as a separate cell without duplicating message A in its body
 }
 
-public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction: MessageMenuAction>: View {
-    
+public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction: MessageMenuAction>:
+    View
+{
+
     /// User and MessageId
-    public typealias TapAvatarClosure = (User, String) -> ()
-    
+    public typealias TapAvatarClosure = (User, String) -> Void
+
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.chatTheme) private var theme
     @Environment(\.giphyConfig) private var giphyConfig
@@ -65,13 +67,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     // MARK: - Simple view builders
 
     /// a header for the whole chat, which will scroll together with all the messages and headers
-    var mainHeaderBuilder: (()->AnyView)?
+    var mainHeaderBuilder: (() -> AnyView)?
 
     /// date section header builder
-    var dateHeaderBuilder: ((Date)->AnyView)?
+    var dateHeaderBuilder: ((Date) -> AnyView)?
 
     /// content to display in between the chat list view and the input view
-    var betweenListAndInputViewBuilder: (()->AnyView)?
+    var betweenListAndInputViewBuilder: (() -> AnyView)?
 
     // MARK: - Customization
 
@@ -101,6 +103,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     public var body: some View {
         mainView
             .background(chatBackground())
+            // Blur parent when fullscreen media sheet is shown
+            .blur(radius: viewModel.fullscreenAttachmentPresented ? 12 : 0)
+            .animation(.easeInOut(duration: 0.35), value: viewModel.fullscreenAttachmentPresented)
             .environmentObject(keyboardState)
             .onAppear {
                 if isGiphyAvailable() {
@@ -110,11 +115,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                             Giphy.configure(apiKey: giphyKey)
                         }
                     } else {
-                        print("WARNING: giphy key not provided, please pass a key using giphyConfig")
+                        print(
+                            "WARNING: giphy key not provided, please pass a key using giphyConfig")
                     }
                 }
             }
-            .onChange(of: inputViewModel.text) { _ , newValue in
+            .onChange(of: inputViewModel.text) { _, newValue in
                 inputViewCustomizationParameters.onInputTextChange?(newValue)
             }
             .onChange(of: inputViewCustomizationParameters.externalInputText) {
@@ -128,12 +134,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     inputViewModel.send()
                 }
             }
-            .onChange(of: inputViewModel.showPicker) { _ , newValue in
+            .onChange(of: inputViewModel.showPicker) { _, newValue in
                 if newValue {
                     globalFocusState.focus = nil
                 }
             }
-            .onChange(of: inputViewModel.showGiphyPicker) { _ , newValue in
+            .onChange(of: inputViewModel.showGiphyPicker) { _, newValue in
                 if newValue {
                     globalFocusState.focus = nil
                 }
@@ -163,32 +169,37 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 .environmentObject(globalFocusState)
                 .environmentObject(keyboardState)
             }
-            .fullScreenCover(isPresented: $viewModel.fullscreenAttachmentPresented) {
-                let attachments = sections.flatMap { section in section.rows.flatMap { $0.message.attachments } }
-                let index = attachments.firstIndex { $0.id == viewModel.fullscreenAttachmentItem?.id }
-
-                GeometryReader { g in
-                    FullscreenMediaPages(
-                        viewModel: FullscreenMediaPagesViewModel(
-                            attachments: attachments,
-                            index: index ?? 0
-                        ),
-                        safeAreaInsets: g.safeAreaInsets,
-                        onClose: { [weak viewModel] in
-                            viewModel?.dismissAttachmentFullScreen()
-                        }
-                    )
-                    .ignoresSafeArea()
+            .sheet(isPresented: $viewModel.fullscreenAttachmentPresented) {
+                let attachments = sections.flatMap { section in
+                    section.rows.flatMap { $0.message.attachments }
                 }
+                let index = attachments.firstIndex {
+                    $0.id == viewModel.fullscreenAttachmentItem?.id
+                }
+
+                FullscreenMediaPages(
+                    viewModel: FullscreenMediaPagesViewModel(
+                        attachments: attachments,
+                        index: index ?? 0
+                    )
+                )
+                // 1. Size control & selection tracking
+                .presentationDetents([.fraction(0.7), .large])
+                // 2. Control drag handle visibility
+                .presentationDragIndicator(.visible)
+                // 3. Round the top corners
+                .presentationCornerRadius(30)
+                .presentationBackground(Color.clear)
             }
     }
-    
+
     var mainView: some View {
         VStack(spacing: 0) {
-            if chatCustomizationParameters.showNetworkConnectionProblem, !networkMonitor.isConnected {
+            if chatCustomizationParameters.showNetworkConnectionProblem, !networkMonitor.isConnected
+            {
                 waitingForNetwork
             }
-            
+
             if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
                 if let builder = betweenListAndInputViewBuilder {
@@ -206,7 +217,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         // Used to prevent ChatView movement during Emoji Keyboard invocation
         .ignoresSafeArea(isShowingMenu ? .keyboard : [])
     }
-    
+
     var waitingForNetwork: some View {
         VStack {
             Rectangle()
@@ -225,7 +236,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         }
         .padding(.top, 8)
     }
-    
+
     @ViewBuilder
     var listWithButton: some View {
         switch type {
@@ -235,7 +246,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
                 if chatCustomizationParameters.showScrollToBottomButton, !isScrolledToBottom {
                     Button {
-                        self.pendingScrollTo = ScrollToParams(.newestMessage) // Cannot assign to property: 'self' is immutable
+                        self.pendingScrollTo = ScrollToParams(.newestMessage)  // Cannot assign to property: 'self' is immutable
                     } label: {
                         theme.images.scrollToBottom
                             .frame(width: 40, height: 40)
@@ -247,12 +258,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     .padding(.bottom, 8)
                 }
             }
-            
+
         case .comments:
             list
         }
     }
-    
+
     @ViewBuilder
     var list: some View {
         UIList(
@@ -362,7 +373,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         .onAppear(perform: inputViewModel.onStart)
         .onDisappear(perform: inputViewModel.onStop)
     }
-    
+
     func messageMenu(_ row: MessageRow) -> some View {
         let cellFrame = cellFrames[row.id] ?? .zero
 
@@ -373,8 +384,10 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             cellFrame: cellFrame,
             alignment: menuAlignment(row.message, chatType: type),
             positionInUserGroup: row.positionInUserGroup,
-            leadingPadding: messageCustomizationParameters.avatarSize + MessageView.horizontalScreenEdgePadding + MessageView.horizontalSpacing,
-            trailingPadding: MessageView.statusViewWidth + MessageView.horizontalScreenEdgePadding + MessageView.horizontalSpacing,
+            leadingPadding: messageCustomizationParameters.avatarSize
+                + MessageView.horizontalScreenEdgePadding + MessageView.horizontalSpacing,
+            trailingPadding: MessageView.statusViewWidth + MessageView.horizontalScreenEdgePadding
+                + MessageView.horizontalSpacing,
             font: messageCustomizationParameters.font,
             animationDuration: chatCustomizationParameters.messageMenuAnimationDuration,
             onAction: menuActionClosure(row.message),
@@ -396,7 +409,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         }
     }
-    
+
     /// Determines the message menu alignment based on ChatType and message sender.
     private func menuAlignment(_ message: Message, chatType: ChatType) -> MessageMenuAlignment {
         switch chatType {
@@ -406,21 +419,24 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             return .left
         }
     }
-    
+
     /// Our default reactionCallback flow if the user supports Reactions by implementing the didReactToMessage closure
-    private func reactionClosure(_ message: Message) -> (ReactionType?) -> () {
+    private func reactionClosure(_ message: Message) -> (ReactionType?) -> Void {
         { reactionType in
             Task { @MainActor in
                 // Hide the menu
                 hideMessageMenu()
                 // Send the draft reaction
-                guard let reactionDelegate = chatCustomizationParameters.reactionDelegate, let reactionType else { return }
-                reactionDelegate.didReact(to: message, reaction: DraftReaction(messageID: message.id, type: reactionType))
+                guard let reactionDelegate = chatCustomizationParameters.reactionDelegate,
+                    let reactionType
+                else { return }
+                reactionDelegate.didReact(
+                    to: message, reaction: DraftReaction(messageID: message.id, type: reactionType))
             }
         }
     }
 
-    func menuActionClosure(_ message: Message) -> (MenuAction) -> () {
+    func menuActionClosure(_ message: Message) -> (MenuAction) -> Void {
         { action in
             hideMessageMenu()
             messageMenuAction(action, viewModel.messageMenuAction(), message)
@@ -430,13 +446,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     func showMessageMenu() {
         isShowingMenu = true
     }
-    
+
     func hideMessageMenu() {
         viewModel.messageMenuRow = nil
         viewModel.messageFrame = .zero
         isShowingMenu = false
     }
-    
+
     private func chatBackground() -> some View {
         Group {
             if let background = theme.images.background {
@@ -444,19 +460,23 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 case (true, .dark):
                     background.landscapeBackgroundDark
                         .resizable()
-                        .ignoresSafeArea(background.safeAreaRegions, edges: background.safeAreaEdges)
+                        .ignoresSafeArea(
+                            background.safeAreaRegions, edges: background.safeAreaEdges)
                 case (true, .light):
                     background.landscapeBackgroundLight
                         .resizable()
-                        .ignoresSafeArea(background.safeAreaRegions, edges: background.safeAreaEdges)
+                        .ignoresSafeArea(
+                            background.safeAreaRegions, edges: background.safeAreaEdges)
                 case (false, .dark):
                     background.portraitBackgroundDark
                         .resizable()
-                        .ignoresSafeArea(background.safeAreaRegions, edges: background.safeAreaEdges)
+                        .ignoresSafeArea(
+                            background.safeAreaRegions, edges: background.safeAreaEdges)
                 case (false, .light):
                     background.portraitBackgroundLight
                         .resizable()
-                        .ignoresSafeArea(background.safeAreaRegions, edges: background.safeAreaEdges)
+                        .ignoresSafeArea(
+                            background.safeAreaRegions, edges: background.safeAreaEdges)
                 default:
                     theme.colors.mainBG
                 }
@@ -465,11 +485,11 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         }
     }
-    
+
     private func isLandscape() -> Bool {
         UIDevice.current.orientation.isLandscape
     }
-    
+
     private func isGiphyAvailable() -> Bool {
         inputViewCustomizationParameters.availableInputs.contains(AvailableInputType.giphy)
     }

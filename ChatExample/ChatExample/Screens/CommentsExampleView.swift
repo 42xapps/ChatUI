@@ -149,16 +149,17 @@ struct CommentsExampleView: View {
                     }
 
                     if !message.attachments.isEmpty {
-                        LazyVGrid(columns: Array(repeating: GridItem(), count: 2), spacing: 8) {
-                            ForEach(message.attachments) { attachment in
-                                AttachmentCell(attachment: attachment, size: CGSize(width: 150, height: 150), showCancel: message.user.isCurrentUser) { _,_ in
-                                    params.showAttachmentClosure(attachment)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(message.attachments) { attachment in
+                                    AttachmentCell(attachment: attachment, size: CGSize(width: 150, height: 150), showCancel: message.user.isCurrentUser) { _,_ in
+                                        params.showAttachmentClosure(attachment)
+                                    }
+                                    .cornerRadius(12)
+                                    .clipped()
                                 }
-                                .cornerRadius(12)
-                                .clipped()
                             }
                         }
-                        .frame(width: 308)
                     }
 
                     HStack {
