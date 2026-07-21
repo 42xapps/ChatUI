@@ -95,12 +95,12 @@ final class InputViewModel: ObservableObject {
         case .recordAudioTap:
             Task {
                 state = await recorder.isAllowedToRecordAudio ? .isRecordingTap : .waitingForRecordingPermission
-                recordAudio()
+                await recordAudio()
             }
         case .recordAudioHold:
             Task {
                 state = await recorder.isAllowedToRecordAudio ? .isRecordingHold : .waitingForRecordingPermission
-                recordAudio()
+                await recordAudio()
             }
         case .recordAudioLock:
             state = .isRecordingTap
@@ -139,22 +139,26 @@ final class InputViewModel: ObservableObject {
         }
     }
 
-    private func recordAudio() {
-        Task {
-            if await recorder.isRecording { return }
+    private func recordAudio() async {
+        guard !(await recorder.isRecording) else { return }
+
+        attachments.recording = Recording()
+        let url = await recorder.startRecording { [weak self] duration, samples in
+            Task { @MainActor [weak self] in
+                self?.attachments.recording?.duration = duration
+                self?.attachments.recording?.waveformSamples = samples
+            }
         }
-        Task { @MainActor [recorder] in
-            attachments.recording = Recording()
-            let url = await recorder.startRecording { duration, samples in
-                DispatchQueue.main.async { [weak self] in
-                    self?.attachments.recording?.duration = duration
-                    self?.attachments.recording?.waveformSamples = samples
-                }
-            }
-            if state == .waitingForRecordingPermission {
-                state = .isRecordingTap
-            }
-            attachments.recording?.url = url
+
+        guard let url else {
+            attachments.recording = nil
+            state = .empty
+            return
+        }
+
+        attachments.recording?.url = url
+        if state == .waitingForRecordingPermission {
+            state = .isRecordingTap
         }
     }
 }
