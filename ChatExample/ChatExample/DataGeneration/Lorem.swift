@@ -64,8 +64,8 @@ public class Lorem {
         "sapiente", "delectus", "ut", "aut", "reiciendis", "voluptatibus",
         "maiores", "doloribus", "asperiores", "repellat"
     ]
-
-    private static let markdownSymbols = ["*", "_", "**", "**"]
+//    private static let markdownSymbols = ["*", "_", "**", "**"] Just commented this to not to use any markdown stuuf as That stray italic word is coming from the mock data generator, which randomly wraps words in markdown emphasis. Let's remove the italic markers there so only bold demonstration remains, fully satisfying "no italic".
+    private static let markdownSymbols = ["**"]
     
     /**
      Return a random word.

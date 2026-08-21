@@ -243,7 +243,7 @@
 			);
 			mainGroup = 135549272864620900C9459A;
 			packageReferences = (
-				5B03D45D2EE05B5800A09B98 /* XCLocalSwiftPackageReference "../../Chat" */,
+				5B03D45D2EE05B5800A09B98 /* XCLocalSwiftPackageReference "../../ChatUI" */,
 			);
 			productRefGroup = 135549312864620900C9459A /* Products */;
 			projectDirPath = "";
@@ -519,9 +519,9 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		5B03D45D2EE05B5800A09B98 /* XCLocalSwiftPackageReference "../../Chat" */ = {
+		5B03D45D2EE05B5800A09B98 /* XCLocalSwiftPackageReference "../../ChatUI" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../Chat;
+			relativePath = ../../ChatUI;
 		};
 /* End XCLocalSwiftPackageReference section */
 

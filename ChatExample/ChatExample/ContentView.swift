@@ -21,13 +21,13 @@ struct ContentView: View {
             colors.mainCaptionText = Color.gray
 
             // --- Outgoing Messages (My) ---
-            colors.messageMyBG = Color(hex: "#F5F5F5")
-            colors.messageMyText = Color.black
-            colors.messageMyTimeText = Color.black.opacity(0.65)
+            colors.messageMyBG = Color(hex: "#027DFC")
+            colors.messageMyText = Color.white
+            colors.messageMyTimeText = Color.white.opacity(0.65)
             colors.messageReadStatus = Color.green
 
             // --- Incoming Messages (Friend) ---
-            colors.messageFriendBG = Color.clear
+            colors.messageFriendBG = Color(hex: "#EAEAEA")
             colors.messageFriendText = Color.black
             colors.messageFriendTimeText = Color.gray
 

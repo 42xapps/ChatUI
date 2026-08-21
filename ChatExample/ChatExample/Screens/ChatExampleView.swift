@@ -39,6 +39,8 @@ struct ChatExampleView: View {
         .inputViewText($text)
         .keyboardDismissMode(.interactive)
         .setMediaPickerLiveCameraStyle(.prominant)
+        .setMessageFont(UIFont.systemFont(ofSize: 17, weight: .regular))
+        .setAvailableInputs([.text, .audio, .media, .giphy])
         .setRecorderSettings(recorderSettings)
         .messageReactionDelegate(viewModel)
         .swipeActions(edge: .leading, performsFirstActionWithFullSwipe: true, items: [replyAction])
