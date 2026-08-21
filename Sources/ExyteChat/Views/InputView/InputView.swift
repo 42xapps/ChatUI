@@ -28,8 +28,8 @@ public enum InputViewAction: Sendable {
     case deleteRecord
     case playRecord
     case pauseRecord
+    case document
     //    case location
-    //    case document
 
     case saveEdit
     case cancelEdit
@@ -77,6 +77,7 @@ struct InputView: View {
     @Environment(\.mediaPickerTheme) private var pickerTheme
 
     @EnvironmentObject private var keyboardState: KeyboardState
+    @EnvironmentObject private var globalFocusState: GlobalFocusState
 
     @ObservedObject var viewModel: InputViewModel
     var inputFieldId: UUID
@@ -95,6 +96,25 @@ struct InputView: View {
         viewModel.state
     }
 
+    private var isFocused: Bool {
+        globalFocusState.focus == .uuid(inputFieldId)
+    }
+
+    private var isRecordingState: Bool {
+        [.isRecordingHold, .isRecordingTap, .hasRecording, .playingRecording, .pausedRecording]
+            .contains(state)
+    }
+
+    /// Drives the compact (pill, inline controls) ↔ expanded (card, controls below text) morph.
+    /// Recording has its own dedicated layout and never expands this way.
+    private var isExpanded: Bool {
+        style == .message && !isRecordingState && isFocused
+    }
+
+    private var composerCornerRadius: CGFloat { 26 }
+
+    @State private var showAttachMenu = false
+
     @State private var overlaySize: CGSize = .zero
 
     @State private var recordButtonFrame: CGRect = .zero
@@ -107,28 +127,27 @@ struct InputView: View {
     private let tapDelay = 0.2
 
     var body: some View {
-        VStack {
+        VStack(spacing: 8) {
             viewOnTop
                 .padding(.top, 6)
                 .transition(.move(edge: .bottom))
 
             HStack(alignment: .bottom, spacing: 10) {
-                HStack(alignment: .bottom, spacing: 0) {
-                    leftView
-                    middleView
-                    rightView
-                }
-                .background {
-                    RoundedRectangle(cornerRadius: 18)
-                        .fill(
-                            style == .message ? theme.colors.inputBG : theme.colors.inputSignatureBG
-                        )
-                }
+                composerCard
 
-                rightOutsideButton
+                if state == .editing {
+                    editingButtons
+                        .frame(height: 48)
+                }
             }
-            .padding(.horizontal, MessageView.horizontalScreenEdgePadding)
+            .padding(
+                .horizontal,
+                isExpanded
+                    ? MessageView.horizontalScreenEdgePadding
+                    : MessageView.horizontalScreenEdgePadding + 14
+            )
             .padding(.vertical, 8)
+            .animation(.smooth(duration: 0.3), value: isExpanded)
         }
         .background(Color.clear)
         .onAppear {
@@ -140,27 +159,71 @@ struct InputView: View {
         }
     }
 
+    /// `.signature` style and recording keep the original single-row layout (re-skinned with
+    /// the new glass background); the normal `.message` compose flow morphs between compact
+    /// and expanded via `ComposerLayout`, driven purely by focus.
+    @ViewBuilder
+    private var composerCard: some View {
+        Group {
+            if style == .signature || isRecordingState {
+                legacyComposerRow
+            } else {
+                ComposerLayout(isExpanded: isExpanded, spacing: 4) {
+                    attachSlot
+                    TextInputView(
+                        text: $viewModel.text,
+                        inputFieldId: inputFieldId,
+                        style: style,
+                        availableInputs: availableInputs,
+                        localization: localization
+                    )
+                    trailingSlot
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, isExpanded ? 8 : 4)
+            }
+        }
+        .adaptiveGlass(in: RoundedRectangle(cornerRadius: composerCornerRadius, style: .continuous))
+        .animation(.smooth(duration: 0.3), value: isExpanded)
+    }
+
+    private var legacyComposerRow: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            leftView
+            middleView
+            rightView
+        }
+    }
+
+    @ViewBuilder
+    private var attachSlot: some View {
+        if isMediaAvailable() || isGiphyAvailable() {
+            attachButton
+        } else {
+            Color.clear.frame(width: 1, height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var trailingSlot: some View {
+        if state == .editing {
+            Color.clear.frame(width: 1, height: 1)
+        } else {
+            sendRecordButton
+        }
+    }
+
     @ViewBuilder
     var leftView: some View {
-        if [.isRecordingTap, .isRecordingHold, .hasRecording, .playingRecording, .pausedRecording]
-            .contains(state)
-        {
+        if isRecordingState {
             deleteRecordButton
         } else {
-            switch style {
-            case .message:
-                if isMediaAvailable() {
-                    attachButton
-                }
-                if isGiphyAvailable() {
-                    giphyButton
-                }
-            case .signature:
-                if viewModel.mediaPickerMode == .cameraSelection {
-                    addButton
-                } else {
-                    Color.clear.frame(width: 12, height: 1)
-                }
+            // Only reached for `.signature` style now — `.message` outside recording uses
+            // `ComposerLayout`/`attachSlot` instead.
+            if viewModel.mediaPickerMode == .cameraSelection {
+                addButton
+            } else {
+                Color.clear.frame(width: 12, height: 1)
             }
         }
     }
@@ -190,12 +253,8 @@ struct InputView: View {
 
     @ViewBuilder
     var rightView: some View {
-        Group {
+        HStack(spacing: 4) {
             switch state {
-            case .empty, .waitingForRecordingPermission:
-                if case .message = style, isMediaAvailable() {
-                    cameraButton
-                }
             case .isRecordingHold, .isRecordingTap:
                 recordDurationInProcess
             case .hasRecording:
@@ -203,7 +262,11 @@ struct InputView: View {
             case .playingRecording, .pausedRecording:
                 recordDurationLeft
             default:
-                Color.clear.frame(width: 8, height: 1)
+                EmptyView()
+            }
+
+            if state != .editing {
+                sendRecordButton
             }
         }
         .frame(minHeight: 48)
@@ -235,41 +298,35 @@ struct InputView: View {
     }
 
     @ViewBuilder
-    var rightOutsideButton: some View {
-        if state == .editing {
-            editingButtons
-                .frame(height: 48)
-        } else {
-            ZStack {
-                if [.isRecordingTap, .isRecordingHold].contains(state) {
-                    RecordIndicator()
-                        .viewSize(80)
-                        .foregroundColor(theme.colors.sendButtonBackground)
-                }
-                Group {
-                    if state.canSend || !isAudioAvailable() {
-                        sendButton
-                            .disabled(!state.canSend)
-                    } else {
-                        recordButton
-                            .highPriorityGesture(dragGesture())
-                    }
-                }
-                .compositingGroup()
-                .overlay(alignment: .top) {
-                    Group {
-                        if state == .isRecordingTap {
-                            stopRecordButton
-                        } else if state == .isRecordingHold {
-                            lockRecordButton
-                        }
-                    }
-                    .sizeGetter($overlaySize)
-                    // hardcode 28 for now because sizeGetter returns 0 somehow
-                    .offset(y: (state == .isRecordingTap ? -28 : -overlaySize.height) - 24)
+    var sendRecordButton: some View {
+        Group {
+            if state.canSend || !isAudioAvailable() {
+                sendButton
+                    .disabled(!state.canSend)
+            } else {
+                recordButton
+                    .highPriorityGesture(dragGesture())
+            }
+        }
+        .background {
+            if [.isRecordingTap, .isRecordingHold].contains(state) {
+                RecordIndicator()
+                    .viewSize(60)
+                    .foregroundColor(theme.colors.sendButtonBackground)
+            }
+        }
+        .compositingGroup()
+        .overlay(alignment: .top) {
+            Group {
+                if state == .isRecordingTap {
+                    stopRecordButton
+                } else if state == .isRecordingHold {
+                    lockRecordButton
                 }
             }
-            .viewSize(48)
+            .sizeGetter($overlaySize)
+            // hardcode 28 for now because sizeGetter returns 0 somehow
+            .offset(y: (state == .isRecordingTap ? -28 : -overlaySize.height) - 24)
         }
     }
 
@@ -329,27 +386,67 @@ struct InputView: View {
 
     var attachButton: some View {
         Button {
-            onAction(.photo)
+            showAttachMenu = true
         } label: {
-            theme.images.inputView.attach
+            theme.images.inputView.add
                 .renderingMode(.template)
+                .font(.system(size: 20, weight: .regular))
                 .foregroundColor(theme.colors.inputIcon)
-                .viewSize(22)
-                .padding(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 6))
+                .viewSize(24)
+                .padding(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+        }
+        .popover(isPresented: $showAttachMenu) {
+            attachMenuContent
         }
     }
 
-    var giphyButton: some View {
-        Button {
-            onAction(.giphy)
-        } label: {
-            theme.images.inputView.sticker
-                .resizable()
-                .renderingMode(.template)
-                .foregroundColor(theme.colors.inputIcon)
-                .viewSize(22)
-                .padding(EdgeInsets(top: 12, leading: 6, bottom: 12, trailing: 12))
+    var attachMenuContent: some View {
+        VStack(spacing: 0) {
+            if isMediaAvailable() {
+                attachMenuRow(icon: theme.images.attachMenu.photo, title: localization.photoLibraryText) {
+                    onAction(.photo)
+                }
+                Divider()
+                attachMenuRow(icon: theme.images.attachMenu.camera, title: localization.cameraText) {
+                    onAction(.camera)
+                }
+                Divider()
+                attachMenuRow(icon: theme.images.attachMenu.document, title: localization.filesText) {
+                    onAction(.document)
+                }
+            }
+            if isMediaAvailable(), isGiphyAvailable() {
+                Divider()
+            }
+            if isGiphyAvailable() {
+                attachMenuRow(icon: theme.images.inputView.sticker, title: localization.giphyText) {
+                    onAction(.giphy)
+                }
+            }
         }
+        .frame(width: 220)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    func attachMenuRow(icon: Image, title: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            showAttachMenu = false
+        } label: {
+            HStack(spacing: 12) {
+                icon
+                    .resizable()
+                    .renderingMode(.template)
+                    .foregroundColor(theme.colors.inputIcon)
+                    .aspectRatio(contentMode: .fit)
+                    .viewSize(22)
+                Text(title)
+                    .foregroundColor(theme.colors.mainText)
+                Spacer()
+            }
+            .padding(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
+        }
+        .buttonStyle(.plain)
     }
 
     var addButton: some View {
@@ -365,32 +462,28 @@ struct InputView: View {
         }
     }
 
-    var cameraButton: some View {
-        Button {
-            onAction(.camera)
-        } label: {
-            theme.images.inputView.attachCamera
-                .renderingMode(.template)
-                .foregroundColor(theme.colors.inputIcon)
-                .viewSize(22)
-                .padding(EdgeInsets(top: 12, leading: 8, bottom: 12, trailing: 12))
-        }
-    }
-
     var sendButton: some View {
         Button {
             onAction(.send)
         } label: {
             theme.images.inputView.arrowSend
-                .viewSize(48)
-                .circleBackground(theme.colors.sendButtonBackground)
+                .renderingMode(.template)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.white)
+                .frame(width: 26, height: 26)
+                .background(Circle().fill(theme.colors.recordButtonBackground))
+                .padding(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
         }
     }
 
     var recordButton: some View {
         theme.images.inputView.microphone
-            .viewSize(48)
-            .circleBackground(theme.colors.sendButtonBackground)
+            .renderingMode(.template)
+            .font(.system(size: 15, weight: .medium))
+            .foregroundColor(.white)
+            .frame(width: 26, height: 26)
+            .background(Circle().fill(theme.colors.recordButtonBackground))
+            .padding(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
             .frameGetter($recordButtonFrame)
     }
 

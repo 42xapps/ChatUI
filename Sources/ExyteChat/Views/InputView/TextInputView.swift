@@ -16,6 +16,10 @@ struct TextInputView: View {
     var availableInputs: [AvailableInputType]
     var localization: ChatLocalization
 
+    private var isFocused: Bool {
+        globalFocusState.focus == .uuid(inputFieldId)
+    }
+
     var body: some View {
         TextField(
             "", text: $text,
@@ -31,13 +35,23 @@ struct TextInputView: View {
         .foregroundColor(
             style == .message ? theme.colors.inputText : theme.colors.inputSignatureText
         )
-        .padding(.vertical, 12)
-        .padding(.leading, !isMediaGiphyAvailable() ? 12 : 0)
+        .lineLimit(style == .message && !isFocused ? 1...1 : 1...5)
+        .padding(.vertical, style == .message && isFocused ? 2 : 12)
+        .padding(.horizontal, leadingPadding)
         .simultaneousGesture(
             TapGesture().onEnded {
                 globalFocusState.focus = .uuid(inputFieldId)
             }
         )
+    }
+
+    /// `.message` style's horizontal position is otherwise owned by `ComposerLayout` in
+    /// `InputView`, but `TextField` renders its text flush against its own bounds while
+    /// `attachButton`'s icon sits inset by 4pt within its button frame — this small nudge keeps
+    /// the typed text's left edge aligned with the `+` button below it in the expanded layout.
+    private var leadingPadding: CGFloat {
+        guard style != .message else { return 6 }
+        return isMediaGiphyAvailable() ? 0 : 8
     }
 
     private func isMediaGiphyAvailable() -> Bool {

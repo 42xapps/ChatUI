@@ -157,14 +157,14 @@ struct MessageView: View {
                 bubbleView(message)
             }
 
-            // if message.user.isCurrentUser, let status = message.status {
-            //     MessageStatusView(status: status) {
-            //         if case let .error(draft) = status {
-            //             viewModel.sendMessage(draft)
-            //         }
-            //     }
-            //     .viewSize(MessageView.statusViewWidth)
-            // }
+            if message.user.isCurrentUser, let status = message.status {
+                MessageStatusView(status: status) {
+                    if case let .error(draft) = status {
+                        viewModel.sendMessage(draft)
+                    }
+                }
+                .viewSize(MessageView.statusViewWidth)
+            }
         }
         .padding(.top, topPadding)
         .padding(.bottom, bottomPadding)
@@ -404,6 +404,7 @@ extension View {
         isReply: Bool = false
     ) -> some View {
         let radius: CGFloat = !message.attachments.isEmpty ? 12 : 20
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         let additionalMediaInset: CGFloat = message.attachments.count > 1 ? 2 : 0
         self.frame(
             width: message.attachments.isEmpty
@@ -414,12 +415,12 @@ extension View {
             if (params.showUsername && !message.user.isCurrentUser) || isReply || message.hasText
                 || message.recording != nil
             {
-                RoundedRectangle(cornerRadius: radius)
+                shape
                     .foregroundColor(theme.colors.messageBG(message.user.type))
                     .opacity(isReply ? theme.style.replyOpacity : 1)
             }
         }
-        .cornerRadius(radius)
+        .clipShape(shape)
     }
 }
 

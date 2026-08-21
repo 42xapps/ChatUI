@@ -145,6 +145,7 @@ public struct ChatTheme {
 
         public var sendButtonBackground: Color
         public var recordDot: Color
+        public var recordButtonBackground: Color
 
         public init(
             mainBG: Color = Color("mainBG", bundle: .current),
@@ -174,7 +175,8 @@ public struct ChatTheme {
             statusError: Color = Color("statusError", bundle: .current),
             statusGray: Color = Color("statusGray", bundle: .current),
             sendButtonBackground: Color = Color("messageMyBG", bundle: .current),
-            recordDot: Color = Color("menuTextDelete", bundle: .current)
+            recordDot: Color = Color("menuTextDelete", bundle: .current),
+            recordButtonBackground: Color = Color.blue
         ) {
             self.mainBG = mainBG
             self.mainTint = mainTint
@@ -204,6 +206,7 @@ public struct ChatTheme {
             self.statusGray = statusGray
             self.sendButtonBackground = sendButtonBackground
             self.recordDot = recordDot
+            self.recordButtonBackground = recordButtonBackground
         }
 
         public init(copy: Colors, mainBG: Color) {
@@ -235,6 +238,7 @@ public struct ChatTheme {
             self.statusGray = copy.statusGray
             self.sendButtonBackground = copy.sendButtonBackground
             self.recordDot = copy.recordDot
+            self.recordButtonBackground = copy.recordButtonBackground
         }
     }
 
@@ -422,12 +426,12 @@ public struct ChatTheme {
             )
 
             self.inputView = InputView(
-                add: add ?? Image("add", bundle: .current),
+                add: add ?? Image(systemName: "plus"),
                 arrowSend: arrowSend ?? Image("arrowSend", bundle: .current),
                 sticker: sticker ?? Image("sticker", bundle: .current),
                 attach: attach ?? Image("attach", bundle: .current),
                 attachCamera: attachCamera ?? Image("attachCamera", bundle: .current),
-                microphone: microphone ?? Image("microphone", bundle: .current)
+                microphone: microphone ?? Image(systemName: "waveform")
             )
 
             self.fullscreenMedia = FullscreenMedia(

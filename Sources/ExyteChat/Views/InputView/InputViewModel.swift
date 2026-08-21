@@ -16,6 +16,7 @@ final class InputViewModel: ObservableObject {
 
     @Published var showGiphyPicker = false
     @Published var showPicker = false
+    @Published var showDocumentPicker = false
   
     @Published var mediaPickerMode = MediaPickerMode.photos
 
@@ -51,6 +52,7 @@ final class InputViewModel: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.showPicker = false
             self?.showGiphyPicker = false
+            self?.showDocumentPicker = false
             self?.text = ""
             self?.saveEditingClosure = nil
             self?.attachments = InputViewAttachments()
@@ -90,6 +92,8 @@ final class InputViewModel: ObservableObject {
         case .camera:
             mediaPickerMode = .camera
             showPicker = true
+        case .document:
+            showDocumentPicker = true
         case .send:
             send()
         case .recordAudioTap:

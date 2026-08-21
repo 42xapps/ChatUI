@@ -144,8 +144,20 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     globalFocusState.focus = nil
                 }
             }
+            .onChange(of: inputViewModel.showDocumentPicker) { _, newValue in
+                if newValue {
+                    globalFocusState.focus = nil
+                }
+            }
             .onChange(of: chatCustomizationParameters.scrollToParams) { scrollToParams in
                 self.pendingScrollTo = scrollToParams
+            }
+            .onChange(of: newestMessage) { _, _ in
+                // Keeps a streaming reply (repeated in-place edits to the newest message,
+                // e.g. tokens arriving from an LLM) pinned to the bottom, without fighting
+                // the user if they've deliberately scrolled away to read history.
+                guard isScrolledToBottom else { return }
+                pendingScrollTo = ScrollToParams(.newestMessage)
             }
             .sheet(isPresented: $inputViewModel.showGiphyPicker) {
                 if giphyConfig.giphyKey != nil {
@@ -168,6 +180,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 )
                 .environmentObject(globalFocusState)
                 .environmentObject(keyboardState)
+            }
+            .sheet(isPresented: $inputViewModel.showDocumentPicker) {
+                DocumentPickerView()
             }
             .sheet(isPresented: $viewModel.fullscreenAttachmentPresented) {
                 let attachments = sections.flatMap { section in
@@ -200,7 +215,16 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 waitingForNetwork
             }
 
-            if chatCustomizationParameters.isListAboveInputView {
+            if shouldFloatInputView {
+                ZStack(alignment: .bottom) {
+                    // Let the list itself reach the true screen edge so there's no gap of the
+                    // plain chat background between it and the home indicator; the composer
+                    // still respects the safe area, keeping its own position unchanged.
+                    listWithButton
+                        .ignoresSafeArea(edges: .bottom)
+                    inputView
+                }
+            } else if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
                 if let builder = betweenListAndInputViewBuilder {
                     builder()
@@ -216,6 +240,32 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         }
         // Used to prevent ChatView movement during Emoji Keyboard invocation
         .ignoresSafeArea(isShowingMenu ? .keyboard : [])
+    }
+
+    /// The floating glass composer (see `InputView`) is designed to sit on top of the message
+    /// list with content passing behind it. That only makes sense for the default conversation
+    /// layout; other configurations (comments, reversed order, or a custom in-between builder)
+    /// keep the original stacked layout.
+    private var shouldFloatInputView: Bool {
+        type == .conversation
+            && chatCustomizationParameters.isListAboveInputView
+            && betweenListAndInputViewBuilder == nil
+    }
+
+    /// A true `ZStack` overlay (not `safeAreaInset`/`safeAreaBar`) lets the message list's own
+    /// content extend behind the floating composer, which is what makes its glass background
+    /// actually show blurred content through it instead of just looking like a solid fill.
+    /// `safeAreaBar`'s automatic scroll-edge effect doesn't reach into `UIList`'s
+    /// `UIViewRepresentable`-wrapped table view, so it isn't relied on here — instead the table
+    /// gets a modest content inset (sized for the compact composer) so the newest message still
+    /// clears it at rest, while remaining free to scroll behind it.
+    private var effectiveChatParams: ChatCustomizationParameters {
+        guard shouldFloatInputView else { return chatCustomizationParameters }
+        var params = chatCustomizationParameters
+        let floatingComposerInset: CGFloat = 68
+        // NOTE: top and bottom are vice versa here — the conversation table is upside down.
+        params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
+        return params
     }
 
     var waitingForNetwork: some View {
@@ -290,7 +340,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
             // MARK: - Customization
 
-            chatParams: chatCustomizationParameters,
+            chatParams: effectiveChatParams,
             messageParams: messageCustomizationParameters
         )
         .applyIf(!chatCustomizationParameters.isScrollEnabled) {
@@ -493,6 +543,15 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     private func isGiphyAvailable() -> Bool {
         inputViewCustomizationParameters.availableInputs.contains(AvailableInputType.giphy)
     }
+
+    /// The chat's most recently created message, if any. `sections`/`ids` are already sorted
+    /// newest-first for `.conversation`, so this is cheap and doesn't require holding onto the
+    /// raw `messages` array. Scoped to `.conversation` to match the existing send-triggered
+    /// scroll-to-bottom behavior above.
+    private var newestMessage: Message? {
+        guard type == .conversation else { return nil }
+        return sections.first?.rows.first?.message
+    }
 }
 
 //#Preview {
@@ -546,3 +605,18 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 //            text: "That I shall say 'Good night' till it be morrow"),
 //    ]) { draft in }
 //}
+
+
+Use the /loop skill to implement docs/superpowers/specs/2026-08-21-convex-clerk-r2-chat-backend-design.md step by step, in the order given in that file's "Suggested order of work" section.
+
+Before writing any Convex or Clerk integration code, fetch the actual current docs for that specific piece (docs/convex-llm.txt is a Convex docs index — find the right page there, then fetch it; for Cloudflare R2, docs/cloudflare-r2-llms-full.txt,  or grep docs/cloudflare-r2-llms-full.txt for R2 keywords or fetch https://developers.cloudflare.com/r2/llms.txt directly — that file is the full Cloudflare docs dump, not R2-scoped, don't read it wholesale). Confirm real import names and function signatures against the docs before using them — do not guess or hallucinate SDK APIs.
+
+I'll give you the Convex deployment URL, Clerk publishable key + JWT template name, and R2 bucket credentials once you ask for them — don't invent placeholder values and move on.
+
+Hard constraints:
+- Do not modify anything under ChatFirestoreExample/ — it stays as an untouched reference.
+- No LLM integration, no voice, no mem0 in this pass — don't build stubs or placeholders for them either.
+- Build (swift build / xcodebuild for the ChatConvexExample scheme) after each phase before moving to the next — don't let unverified work stack up across phases.
+- Follow the join-table (conversationMembers) design in the spec for per-user conversation scoping, not a literal port of Firestore's array-contains filter.
+
+Ask me if anything in the spec is ambiguous or if you hit a decision point it doesn't cover.
