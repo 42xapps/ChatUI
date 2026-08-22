@@ -9,6 +9,8 @@ It stays **untouched** as a reference — do not modify it.
 This spec defines a **new** app target, `ChatConvexExample/`, that gives the same
 chat experience (built on the `ExyteChat` SwiftUI package) but backed by:
 
+BTW: In ChatFirestoreExample, I have added both convex and clerk ios sdks, so you can add the new folder ChatConvexExample/ in the same level of ChatFirestoreExample, and update the files like. or you can direclty write the code and update the files and code in ChatFirestoreExample so we have it in there as this is an already setup xcode project, but since we are doing that we should really not create a bad code as we are updating from Firebase to convex with clerk and cloudflare r2. let me know about the best approach for this. 
+
 - **Convex** for chat history, conversation list, and realtime message delivery
 - **Clerk** for auth (Sign in with Apple + email/password)
 - **Cloudflare R2** for attachment storage (images / video / voice notes; GIFs from
