@@ -1,0 +1,30 @@
+// Client-side configuration for ChatConvexExample.
+//
+// Both values ship inside the app binary and are safe to commit — the Clerk
+// publishable key is designed for client use, and the Convex deployment URL is
+// a public endpoint. Nothing here grants write access on its own; authorization
+// happens server-side against the Clerk session token.
+//
+// R2 credentials deliberately do NOT live here. They belong to the Convex
+// deployment (`npx convex env set R2_...`) and never reach the client.
+//
+// `//` starts a comment in xcconfig, so URLs must be written without the
+// scheme's double slash; `AppConfig` prepends `https://`.
+
+// Convex deployment host, e.g. dusty-nightingale-847.convex.cloud
+CONVEX_DEPLOYMENT_URL = exciting-vulture-777.convex.cloud
+
+// Clerk publishable key, e.g. pk_test_...
+CLERK_PUBLISHABLE_KEY = pk_test_dGlkeS1tb3RoLTY1My5jbGVyay5hY2NvdW50cy5kZXYk
+
+// Giphy SDK API key, from https://developers.giphy.com/dashboard. Optional —
+// GIF sending just won't work without it (AppConfig.giphyApiKey is nil, and
+// ExyteChat's picker shows "no giphy key found" instead of crashing).
+GIPHY_API_KEY =
+
+// convex-swift's libconvexmobile-rs.xcframework (a Rust binary via UniFFI)
+// ships no x86_64 slice, so an Intel-Mac or "generic iOS Simulator" build
+// fails at link time with dozens of missing UniFFI symbols. Excluding x86_64
+// here makes Xcode resolve straight to an arm64 simulator instead of
+// attempting — and failing — a universal binary. Apple Silicon only, for now.
+EXCLUDED_ARCHS[sdk=iphonesimulator*] = x86_64
