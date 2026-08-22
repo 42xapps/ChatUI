@@ -97,6 +97,10 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
     @State private var isShowingMenu = false
 
+    /// Measured height of the floating composer, including the bottom safe area it sits above.
+    /// Drives the message list's content inset so messages clear the composer as it grows.
+    @State private var floatingComposerHeight: CGFloat = 0
+
     @State private var giphyConfigured = false
     @State private var selectedGiphyMedia: GPHMedia? = nil
 
@@ -223,6 +227,20 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     listWithButton
                         .ignoresSafeArea(edges: .bottom)
                     inputView
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: FloatingComposerHeightKey.self,
+                                    // The list ignores the bottom safe area while the composer
+                                    // sits above it, so the strip of list the composer covers is
+                                    // its own height plus that inset.
+                                    value: proxy.size.height + proxy.safeAreaInsets.bottom
+                                )
+                            }
+                        )
+                }
+                .onPreferenceChange(FloatingComposerHeightKey.self) { height in
+                    floatingComposerHeight = height
                 }
             } else if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
@@ -262,7 +280,10 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     private var effectiveChatParams: ChatCustomizationParameters {
         guard shouldFloatInputView else { return chatCustomizationParameters }
         var params = chatCustomizationParameters
-        let floatingComposerInset: CGFloat = 68
+        // Measured, not fixed. The composer switches to a taller two-row layout once the draft
+        // wraps (see `ComposerLayout`) and keeps growing with it, so a constant sized for the
+        // compact state leaves the newest messages sitting behind it.
+        let floatingComposerInset = floatingComposerHeight + floatingComposerGap
         // NOTE: top and bottom are vice versa here — the conversation table is upside down.
         params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
         return params
@@ -606,17 +627,15 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 //    ]) { draft in }
 //}
 
+/// Breathing room between the newest message and the floating composer.
+private let floatingComposerGap: CGFloat = 8
 
-Use the /loop skill to implement docs/superpowers/specs/2026-08-21-convex-clerk-r2-chat-backend-design.md step by step, in the order given in that file's "Suggested order of work" section.
+/// Reports the floating composer's rendered height up to `ChatView`, so the message list can
+/// inset by however tall it currently is rather than a constant.
+private struct FloatingComposerHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
 
-Before writing any Convex or Clerk integration code, fetch the actual current docs for that specific piece (docs/convex-llm.txt is a Convex docs index — find the right page there, then fetch it; for Cloudflare R2, docs/cloudflare-r2-llms-full.txt,  or grep docs/cloudflare-r2-llms-full.txt for R2 keywords or fetch https://developers.cloudflare.com/r2/llms.txt directly — that file is the full Cloudflare docs dump, not R2-scoped, don't read it wholesale). Confirm real import names and function signatures against the docs before using them — do not guess or hallucinate SDK APIs.
-
-I'll give you the Convex deployment URL, Clerk publishable key + JWT template name, and R2 bucket credentials once you ask for them — don't invent placeholder values and move on.
-
-Hard constraints:
-- Do not modify anything under ChatFirestoreExample/ — it stays as an untouched reference.
-- No LLM integration, no voice, no mem0 in this pass — don't build stubs or placeholders for them either.
-- Build (swift build / xcodebuild for the ChatConvexExample scheme) after each phase before moving to the next — don't let unverified work stack up across phases.
-- Follow the join-table (conversationMembers) design in the spec for per-user conversation scoping, not a literal port of Firestore's array-contains filter.
-
-Ask me if anything in the spec is ambiguous or if you hit a decision point it doesn't cover.
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}

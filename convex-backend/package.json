@@ -1,0 +1,23 @@
+{
+  "name": "chat-convex-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Convex backend for ChatConvexExample (chat history, realtime, R2 attachments)",
+  "scripts": {
+    "dev": "convex dev",
+    "deploy": "convex deploy",
+    "typecheck": "tsc --noEmit -p convex"
+  },
+  "dependencies": {
+    "@convex-dev/r2": "^0.10.2",
+    "convex": "^1.44.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3"
+  },
+  "allowScripts": {
+    "esbuild@0.27.0": true
+  }
+}
