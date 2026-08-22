@@ -111,7 +111,7 @@ struct InputView: View {
         style == .message && !isRecordingState && isFocused
     }
 
-    private var composerCornerRadius: CGFloat { 26 }
+    private var composerCornerRadius: CGFloat { isExpanded ? 20 : 26 }
 
     @State private var showAttachMenu = false
 
@@ -146,7 +146,8 @@ struct InputView: View {
                     ? MessageView.horizontalScreenEdgePadding
                     : MessageView.horizontalScreenEdgePadding + 14
             )
-            .padding(.vertical, 8)
+            .padding(.top, 8)
+            .padding(.bottom, 4)
             .animation(.smooth(duration: 0.3), value: isExpanded)
         }
         .background(Color.clear)

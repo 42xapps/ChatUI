@@ -32,6 +32,7 @@ struct TextInputView: View {
             ), axis: .vertical
         )
         .customFocus($globalFocusState.focus, equals: .uuid(inputFieldId))
+        .font(.system(size: 19))
         .foregroundColor(
             style == .message ? theme.colors.inputText : theme.colors.inputSignatureText
         )
