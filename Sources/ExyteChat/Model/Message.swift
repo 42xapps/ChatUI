@@ -9,6 +9,16 @@ import SwiftUI
 
 public struct Message: Identifiable, Sendable {
 
+    /// Optional lifecycle for a server-generated response. Kept separate from
+    /// delivery `Status`, which describes an outgoing user's transport state.
+    public enum ResponseStatus: Equatable, Sendable {
+        case queued(until: Date?)
+        case generating
+        case completed
+        case failed(code: String, message: String, retryable: Bool, retryAfter: Date?)
+        case cancelled
+    }
+
     public enum Status: Equatable, Hashable, Sendable {
         case sending
         case sent
@@ -60,6 +70,7 @@ public struct Message: Identifiable, Sendable {
     public var giphyMediaId: String?
     public var recording: Recording?
     public var replyMessage: ReplyMessage?
+    public var responseStatus: ResponseStatus?
     public var customData: [String: any Sendable]
 
     public var triggerRedraw: UUID?
@@ -83,6 +94,7 @@ public struct Message: Identifiable, Sendable {
         reactions: [Reaction] = [],
         recording: Recording? = nil,
         replyMessage: ReplyMessage? = nil,
+        responseStatus: ResponseStatus? = nil,
         customData: [String: any Sendable] = [:]
     ) {
         self.id = id
@@ -95,6 +107,7 @@ public struct Message: Identifiable, Sendable {
         self.reactions = reactions
         self.recording = recording
         self.replyMessage = replyMessage
+        self.responseStatus = responseStatus
         self.customData = customData
     }
 
@@ -109,6 +122,7 @@ public struct Message: Identifiable, Sendable {
         reactions: [Reaction] = [],
         recording: Recording? = nil,
         replyMessage: ReplyMessage? = nil,
+        responseStatus: ResponseStatus? = nil,
         customData: [String: any Sendable] = [:]
     ) {
         self.id = id
@@ -121,6 +135,7 @@ public struct Message: Identifiable, Sendable {
         self.reactions = reactions
         self.recording = recording
         self.replyMessage = replyMessage
+        self.responseStatus = responseStatus
         self.customData = customData
     }
 
@@ -180,6 +195,7 @@ extension Message: Equatable {
         lhs.reactions == rhs.reactions &&
         lhs.recording == rhs.recording &&
         lhs.replyMessage == rhs.replyMessage &&
+        lhs.responseStatus == rhs.responseStatus &&
         lhs.triggerRedraw == rhs.triggerRedraw
     }
 }

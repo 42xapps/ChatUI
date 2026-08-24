@@ -25,7 +25,7 @@ export const listMine = query({
   },
 });
 
-/** Starts a new, empty conversation — the sidebar's "New Chat". */
+/** Starts a new conversation with the companion's initial greeting. */
 export const create = mutation({
   args: {},
   returns: v.id("conversations"),

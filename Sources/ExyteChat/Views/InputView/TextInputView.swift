@@ -36,13 +36,20 @@ struct TextInputView: View {
         .foregroundColor(
             style == .message ? theme.colors.inputText : theme.colors.inputSignatureText
         )
+        .tint(style == .message ? theme.colors.inputText : theme.colors.inputSignatureText)
         .lineLimit(style == .message && !isFocused ? 1...1 : 1...5)
-        .padding(.vertical, style == .message && isFocused ? 2 : 12)
+        .padding(.vertical, style == .message ? 6 : 12)
         .padding(.horizontal, leadingPadding)
         .simultaneousGesture(
             TapGesture().onEnded {
                 globalFocusState.focus = .uuid(inputFieldId)
             }
+        )
+        .accessibilityLabel(
+            style == .message ? localization.inputPlaceholder : localization.signatureText
+        )
+        .accessibilityIdentifier(
+            style == .message ? "chat-message-input" : "chat-signature-input"
         )
     }
 

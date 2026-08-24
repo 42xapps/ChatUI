@@ -30,7 +30,14 @@ import type { DataModel } from "./dataModel.js";
 type Env = {
   readonly CONVEX_CLOUD_URL: string;
   readonly CONVEX_SITE_URL: string;
-  readonly R2_PUBLIC_BASE_URL: string | undefined;
+  readonly COMPANION_MODEL: string | undefined;
+  readonly COMPANION_PROVIDER: string | undefined;
+  readonly DEEPSEEK_API_KEY: string | undefined;
+  readonly GOOGLE_GENERATIVE_AI_API_KEY: string | undefined;
+  readonly MOONSHOT_API_KEY: string | undefined;
+  readonly OPENAI_API_KEY: string | undefined;
+  readonly QWEN_API_KEY: string | undefined;
+  readonly QWEN_BASE_URL: string | undefined;
 };
 
 /**

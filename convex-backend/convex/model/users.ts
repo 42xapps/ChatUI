@@ -2,6 +2,8 @@ import { ConvexError, v } from "convex/values";
 import type { Doc } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 
+const COMPANION_TOKEN_IDENTIFIER = "system|companion";
+
 /** The subset of a `users` row that is safe to hand to any signed-in client. */
 export const publicUser = v.object({
   _id: v.id("users"),
@@ -20,6 +22,32 @@ export function toPublicUser(user: Doc<"users">) {
     name: user.name,
     avatarUrl: user.avatarUrl,
   };
+}
+
+/** The singleton synthetic sender used for all companion-authored messages. */
+export async function getOrCreateCompanionUser(
+  ctx: MutationCtx,
+): Promise<Doc<"users">> {
+  const existing = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) =>
+      q.eq("tokenIdentifier", COMPANION_TOKEN_IDENTIFIER),
+    )
+    .unique();
+  if (existing !== null) {
+    return existing;
+  }
+
+  const id = await ctx.db.insert("users", {
+    tokenIdentifier: COMPANION_TOKEN_IDENTIFIER,
+    clerkId: "companion",
+    name: "Embie",
+  });
+  const inserted = await ctx.db.get("users", id);
+  if (inserted === null) {
+    throw new ConvexError("Failed to create companion user");
+  }
+  return inserted;
 }
 
 /**

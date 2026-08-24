@@ -1,16 +1,23 @@
 import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
-import { attachmentType } from "../schema";
-import { attachmentUrl } from "./attachments";
-import { publicUser, toPublicUser } from "./users";
+import {
+  attachmentType,
+  generationError,
+  generationStatus,
+} from "../schema";
+import { resolvedAttachmentUrl } from "./attachments";
+import {
+  publicUser,
+  toPublicUser,
+} from "./users";
 
 /**
  * An attachment as the client sees it: R2 keys resolved to fetchable URLs.
  *
  * Both keys come along for the ride because the client uses them as image-cache
- * keys. That keeps caching independent of the URL scheme — switching
- * `R2_PUBLIC_BASE_URL` on or off changes every URL but no cache key.
+ * keys. That keeps caching independent of the short-lived capability URL — a
+ * refreshed redirect URL does not invalidate the client's object-key cache.
  */
 export const resolvedAttachment = v.object({
   type: attachmentType,
@@ -49,26 +56,47 @@ export const resolvedMessage = v.object({
   giphyMediaId: v.optional(v.string()),
   recording: v.optional(resolvedRecording),
   replyTo: v.optional(resolvedReply),
+  generationStatus: v.optional(generationStatus),
+  generationError: v.optional(generationError),
+  generationNotBefore: v.optional(v.number()),
 });
 
-function resolveAttachments(attachments: Doc<"messages">["attachments"]) {
-  return attachments.map((attachment) => ({
-    type: attachment.type,
-    url: attachmentUrl(attachment.r2Key),
-    thumbUrl: attachmentUrl(attachment.thumbR2Key),
-    r2Key: attachment.r2Key,
-    thumbR2Key: attachment.thumbR2Key,
-  }));
+async function resolveAttachments(
+  ctx: QueryCtx,
+  attachments: Doc<"messages">["attachments"],
+) {
+  const resolved = [];
+  for (const attachment of attachments) {
+    const url = await resolvedAttachmentUrl(ctx, attachment.r2Key);
+    const thumbUrl =
+      attachment.thumbR2Key === attachment.r2Key
+        ? url
+        : await resolvedAttachmentUrl(ctx, attachment.thumbR2Key);
+    if (url === null || thumbUrl === null) continue;
+    resolved.push({
+      type: attachment.type,
+      url,
+      thumbUrl,
+      r2Key: attachment.r2Key,
+      thumbR2Key: attachment.thumbR2Key,
+    });
+  }
+  return resolved;
 }
 
-function resolveRecording(recording: Doc<"messages">["recording"]) {
+async function resolveRecording(
+  ctx: QueryCtx,
+  recording: Doc<"messages">["recording"],
+) {
   if (recording === undefined) {
     return undefined;
   }
+  const url = await resolvedAttachmentUrl(ctx, recording.r2Key);
+  if (url === null) return undefined;
   return {
     duration: recording.duration,
     waveformSamples: recording.waveformSamples,
-    url: attachmentUrl(recording.r2Key),
+    url,
   };
 }
 
@@ -96,8 +124,8 @@ export async function resolveMessage(ctx: QueryCtx, message: Doc<"messages">) {
         sender: toPublicUser(parentSender),
         _creationTime: parent._creationTime,
         text: parent.text,
-        attachments: resolveAttachments(parent.attachments),
-        recording: resolveRecording(parent.recording),
+        attachments: await resolveAttachments(ctx, parent.attachments),
+        recording: await resolveRecording(ctx, parent.recording),
       };
     }
   }
@@ -108,10 +136,13 @@ export async function resolveMessage(ctx: QueryCtx, message: Doc<"messages">) {
     clientId: message.clientId,
     sender: toPublicUser(sender),
     text: message.text,
-    attachments: resolveAttachments(message.attachments),
+    attachments: await resolveAttachments(ctx, message.attachments),
     giphyMediaId: message.giphyMediaId,
-    recording: resolveRecording(message.recording),
+    recording: await resolveRecording(ctx, message.recording),
     replyTo,
+    generationStatus: message.generationStatus,
+    generationError: message.generationError,
+    generationNotBefore: message.generationNotBefore,
   };
 }
 
@@ -123,9 +154,9 @@ export async function messageByClientId(
 ): Promise<Doc<"messages"> | null> {
   const message = await ctx.db
     .query("messages")
-    .withIndex("by_client_id", (q) => q.eq("clientId", clientId))
+    .withIndex("by_conversation_and_client_id", (q) =>
+      q.eq("conversationId", conversationId).eq("clientId", clientId),
+    )
     .unique();
-  return message !== null && message.conversationId === conversationId
-    ? message
-    : null;
+  return message;
 }

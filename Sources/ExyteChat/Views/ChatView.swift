@@ -221,19 +221,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
             if shouldFloatInputView {
                 ZStack(alignment: .bottom) {
-                    // Let the list itself reach the true screen edge so there's no gap of the
-                    // plain chat background between it and the home indicator; the composer
-                    // still respects the safe area, keeping its own position unchanged.
                     listWithButton
-                        .ignoresSafeArea(edges: .bottom)
+                        .ignoresSafeArea(edges: [.top, .bottom])
                     inputView
                         .background(
                             GeometryReader { proxy in
                                 Color.clear.preference(
                                     key: FloatingComposerHeightKey.self,
-                                    // The list ignores the bottom safe area while the composer
-                                    // sits above it, so the strip of list the composer covers is
-                                    // its own height plus that inset.
                                     value: proxy.size.height + proxy.safeAreaInsets.bottom
                                 )
                             }

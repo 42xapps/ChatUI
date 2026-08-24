@@ -4,6 +4,42 @@ import { v } from "convex/values";
 /** Mirrors `ExyteChat.AttachmentType`. */
 export const attachmentType = v.union(v.literal("image"), v.literal("video"));
 
+/** What a presigned R2 upload is expected to contain. */
+export const uploadKind = v.union(
+  v.literal("image"),
+  v.literal("video"),
+  v.literal("videoThumbnail"),
+  v.literal("recording"),
+);
+
+/** Lifecycle mirrored onto an assistant message for the native client. */
+export const generationStatus = v.union(
+  v.literal("queued"),
+  v.literal("generating"),
+  v.literal("completed"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const generationErrorCode = v.union(
+  v.literal("provider_configuration"),
+  v.literal("provider_authentication"),
+  v.literal("provider_billing"),
+  v.literal("provider_rate_limited"),
+  v.literal("provider_unavailable"),
+  v.literal("timeout"),
+  v.literal("unsupported_media"),
+  v.literal("generation_failed"),
+);
+
+/** Safe, user-facing failure information. Provider response bodies stay out. */
+export const generationError = v.object({
+  code: generationErrorCode,
+  message: v.string(),
+  retryable: v.boolean(),
+  retryAfterMs: v.optional(v.number()),
+});
+
 /**
  * An attachment as it is stored: R2 object keys only.
  *
@@ -56,6 +92,8 @@ export default defineSchema({
     title: v.optional(v.string()),
     createdAt: v.number(),
     createdBy: v.id("users"),
+    /** Internal Agent component thread used only for LLM context/history. */
+    agentThreadId: v.optional(v.string()),
     /**
      * Denormalized onto the conversation (rather than computed by scanning
      * its messages) so `conversations.listMine` can sort by recency in one
@@ -73,8 +111,11 @@ export default defineSchema({
   conversationMembers: defineTable({
     conversationId: v.id("conversations"),
     userId: v.id("users"),
+    /** Optional while existing rows are backfilled. */
+    lastMessageAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
+    .index("by_user_and_last_message_at", ["userId", "lastMessageAt"])
     .index("by_conversation_and_user", ["conversationId", "userId"]),
 
   messages: defineTable({
@@ -93,6 +134,11 @@ export default defineSchema({
     giphyMediaId: v.optional(v.string()),
     recording: v.optional(storedRecording),
     replyTo: v.optional(v.id("messages")),
+    /** Present only on companion-authored messages. */
+    generationTurnId: v.optional(v.id("generationTurns")),
+    generationStatus: v.optional(generationStatus),
+    generationError: v.optional(generationError),
+    generationNotBefore: v.optional(v.number()),
     /**
      * Compose-time clock of the sender's device. Kept for display/debugging
      * only — a skewed device clock, or a message composed offline and sent
@@ -106,5 +152,78 @@ export default defineSchema({
     // falls back to `_creationTime`, which is what `listForConversation`
     // relies on for a correct, clock-skew-proof chronological order.
     .index("by_conversation", ["conversationId"])
-    .index("by_client_id", ["clientId"]),
+    .index("by_conversation_and_client_id", ["conversationId", "clientId"]),
+
+  /**
+   * Durable orchestration record for one user-message -> companion-response
+   * turn. Attempt IDs and leases make delayed or stale actions harmless.
+   */
+  generationTurns: defineTable({
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+    userMessageId: v.id("messages"),
+    assistantMessageId: v.id("messages"),
+    agentPromptMessageId: v.string(),
+    status: generationStatus,
+    queuedAt: v.number(),
+    notBefore: v.number(),
+    attemptCount: v.number(),
+    estimatedTokens: v.number(),
+    provider: v.optional(v.string()),
+    model: v.optional(v.string()),
+    attemptId: v.optional(v.string()),
+    leaseExpiresAt: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+    finishedAt: v.optional(v.number()),
+    error: v.optional(generationError),
+    /** Bounded counters used to measure bridge write amplification. */
+    streamPatchCount: v.number(),
+    outputCharacters: v.number(),
+  })
+    .index("by_conversation_and_status_and_queued_at", [
+      "conversationId",
+      "status",
+      "queuedAt",
+    ])
+    .index("by_status_and_lease_expires_at", ["status", "leaseExpiresAt"])
+    .index("by_assistant_message_id", ["assistantMessageId"])
+    .index("by_user_message_id", ["userMessageId"]),
+
+  /** Append-only provider usage suitable for product and cost reporting. */
+  llmUsageEvents: defineTable({
+    turnId: v.id("generationTurns"),
+    conversationId: v.id("conversations"),
+    userId: v.id("users"),
+    provider: v.string(),
+    model: v.string(),
+    inputTokens: v.number(),
+    outputTokens: v.number(),
+    totalTokens: v.number(),
+    cacheReadTokens: v.optional(v.number()),
+    cacheWriteTokens: v.optional(v.number()),
+    reasoningTokens: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_user_and_created_at", ["userId", "createdAt"])
+    .index("by_conversation_and_created_at", ["conversationId", "createdAt"])
+    .index("by_turn_id", ["turnId"]),
+
+  /**
+   * Ownership and lifecycle record for every object uploaded directly to R2.
+   * The access token is revocable; knowing an object key alone is insufficient
+   * to mint a download URL.
+   */
+  mediaAssets: defineTable({
+    r2Key: v.string(),
+    accessToken: v.string(),
+    kind: uploadKind,
+    userId: v.id("users"),
+    conversationId: v.id("conversations"),
+    createdAt: v.number(),
+    claimedMessageId: v.optional(v.id("messages")),
+    claimedAt: v.optional(v.number()),
+  })
+    .index("by_r2_key", ["r2Key"])
+    .index("by_conversation_and_created_at", ["conversationId", "createdAt"])
+    .index("by_claimed_message_id", ["claimedMessageId"]),
 });

@@ -111,7 +111,19 @@ struct InputView: View {
         style == .message && !isRecordingState && isFocused
     }
 
-    private var composerCornerRadius: CGFloat { isExpanded ? 20 : 26 }
+    /// The compact row is short enough that 26 reads as a full pill, while the taller expanded
+    /// card keeps the reference design's tighter corner.
+    private var composerCornerRadius: CGFloat { isExpanded ? 16 : 26 }
+
+    private var composerShape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: composerCornerRadius, style: .continuous)
+    }
+
+    /// Inset of the control chips from the card's edges.
+    private let composerContentPadding: CGFloat = 8
+
+    /// Diameter of the circular attach / send / record chips.
+    static let controlChipSize: CGFloat = 36
 
     @State private var showAttachMenu = false
 
@@ -143,8 +155,8 @@ struct InputView: View {
             .padding(
                 .horizontal,
                 isExpanded
-                    ? MessageView.horizontalScreenEdgePadding
-                    : MessageView.horizontalScreenEdgePadding + 14
+                    ? MessageView.horizontalScreenEdgePadding + 2
+                    : MessageView.horizontalScreenEdgePadding + 10
             )
             .padding(.top, 8)
             .padding(.bottom, 4)
@@ -169,7 +181,7 @@ struct InputView: View {
             if style == .signature || isRecordingState {
                 legacyComposerRow
             } else {
-                ComposerLayout(isExpanded: isExpanded, spacing: 4) {
+                ComposerLayout(isExpanded: isExpanded, spacing: isExpanded ? 12 : 4) {
                     attachSlot
                     TextInputView(
                         text: $viewModel.text,
@@ -180,11 +192,14 @@ struct InputView: View {
                     )
                     trailingSlot
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, isExpanded ? 8 : 4)
+                .padding(composerContentPadding)
             }
         }
-        .adaptiveGlass(in: RoundedRectangle(cornerRadius: composerCornerRadius, style: .continuous))
+        .adaptiveGlass(in: composerShape)
+        .overlay {
+            composerShape
+                .strokeBorder(theme.colors.mainText.opacity(0.12), lineWidth: 1)
+        }
         .animation(.smooth(duration: 0.3), value: isExpanded)
     }
 
@@ -194,6 +209,7 @@ struct InputView: View {
             middleView
             rightView
         }
+        .padding(.horizontal, composerContentPadding)
     }
 
     @ViewBuilder
@@ -393,8 +409,8 @@ struct InputView: View {
                 .renderingMode(.template)
                 .font(.system(size: 20, weight: .regular))
                 .foregroundColor(theme.colors.inputIcon)
-                .viewSize(24)
-                .padding(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                .frame(width: Self.controlChipSize, height: Self.controlChipSize)
+                .background(Circle().fill(theme.colors.mainText.opacity(0.06)))
         }
         .popover(isPresented: $showAttachMenu) {
             attachMenuContent
@@ -437,12 +453,11 @@ struct InputView: View {
             HStack(spacing: 12) {
                 icon
                     .resizable()
-                    .renderingMode(.template)
-                    .foregroundColor(theme.colors.inputIcon)
                     .aspectRatio(contentMode: .fit)
                     .viewSize(22)
+                    .foregroundStyle(Color.primary)
                 Text(title)
-                    .foregroundColor(theme.colors.mainText)
+                    .foregroundStyle(Color.primary)
                 Spacer()
             }
             .padding(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
@@ -469,22 +484,22 @@ struct InputView: View {
         } label: {
             theme.images.inputView.arrowSend
                 .renderingMode(.template)
-                .font(.system(size: 15, weight: .medium))
+                .font(.system(size: 17, weight: .semibold))
                 .foregroundColor(.white)
-                .frame(width: 26, height: 26)
+                .frame(width: Self.controlChipSize, height: Self.controlChipSize)
                 .background(Circle().fill(theme.colors.recordButtonBackground))
-                .padding(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
         }
+        .accessibilityLabel("Send message")
+        .accessibilityIdentifier("chat-send-message")
     }
 
     var recordButton: some View {
         theme.images.inputView.microphone
             .renderingMode(.template)
-            .font(.system(size: 15, weight: .medium))
+            .font(.system(size: 17, weight: .semibold))
             .foregroundColor(.white)
-            .frame(width: 26, height: 26)
+            .frame(width: Self.controlChipSize, height: Self.controlChipSize)
             .background(Circle().fill(theme.colors.recordButtonBackground))
-            .padding(EdgeInsets(top: 8, leading: 6, bottom: 8, trailing: 6))
             .frameGetter($recordButtonFrame)
     }
 

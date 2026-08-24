@@ -23,7 +23,6 @@ extension UIList {
             var insertOperations = [Operation]()
             var swapOperations = [Operation]()
             var editOperations = [Operation]()
-            var editChangingHeightOperations = [Operation]()
 
             // 1 compare sections
 
@@ -92,8 +91,15 @@ extension UIList {
                                 swapOperations.append(.swap(oldIndex, i, index))
                             }
                         }
-                    } else if oldRow.message.reactions != newRow.message.reactions { // same ids on same positions but reactions changed - this will change cell's height, perform a deeper reload
+                    } else if oldRow.message.reactions != newRow.message.reactions ||
+                                oldRow.message.attachments != newRow.message.attachments ||
+                                oldRow.message.giphyMediaId != newRow.message.giphyMediaId ||
+                                oldRow.message.recording != newRow.message.recording ||
+                                oldRow.message.replyMessage != newRow.message.replyMessage { // media/reactions can replace the cell's complete layout
                         editOperations.append(.editChangingHeight(oldIndex, i))
+                    } else if oldRow.message.attributedText != newRow.message.attributedText ||
+                                oldRow.message.responseStatus != newRow.message.responseStatus { // streamed text/state changes need a self-sizing update without recreating the row
+                        editOperations.append(.editStreaming(oldIndex, i))
                     } else if oldRow != newRow { // same ids on same positions but something else changed - reload rows without animation
                         editOperations.append(.edit(oldIndex, i))
                     }

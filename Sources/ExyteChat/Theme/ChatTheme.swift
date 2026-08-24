@@ -414,12 +414,14 @@ public struct ChatTheme {
 
             self.background = background
 
+            // The attach menu's photo/camera/document entries use full-colour app-style
+            // icons; `attachMenuRow` leaves rendering mode to the asset so they keep it.
             self.attachMenu = AttachMenu(
-                camera: camera ?? Image("camera", bundle: .current),
+                camera: camera ?? Image("camera-icon", bundle: .current),
                 contact: contact ?? Image("contact", bundle: .current),
-                document: document ?? Image("document", bundle: .current),
+                document: document ?? Image("files-icon", bundle: .current),
                 location: location ?? Image("location", bundle: .current),
-                photo: photo ?? Image("photo", bundle: .current),
+                photo: photo ?? Image("photos-icon", bundle: .current),
                 pickDocument: pickDocument ?? Image("pickDocument", bundle: .current),
                 pickLocation: pickLocation ?? Image("pickLocation", bundle: .current),
                 pickPhoto: pickPhoto ?? Image("pickPhoto", bundle: .current)
@@ -428,7 +430,7 @@ public struct ChatTheme {
             self.inputView = InputView(
                 add: add ?? Image(systemName: "plus"),
                 arrowSend: arrowSend ?? Image("arrowSend", bundle: .current),
-                sticker: sticker ?? Image("sticker", bundle: .current),
+                sticker: sticker ?? Image("gifs-icon", bundle: .current),
                 attach: attach ?? Image("attach", bundle: .current),
                 attachCamera: attachCamera ?? Image("attachCamera", bundle: .current),
                 microphone: microphone ?? Image(systemName: "waveform")

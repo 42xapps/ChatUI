@@ -7,13 +7,16 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		40FB81573038D117009624FD /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 40FB81563038D117009624FD /* ExyteChat */; };
+		40FB815A3038D154009624FD /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = 40FB81593038D154009624FD /* ClerkKit */; };
+		40FB815C3038D154009624FD /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 40FB815B3038D154009624FD /* ClerkKitUI */; };
+		40FB815F3038D16B009624FD /* ConvexMobile in Frameworks */ = {isa = PBXBuildFile; productRef = 40FB815E3038D16B009624FD /* ConvexMobile */; };
 		5B1A0C362D8D80F30025D1AD /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5B1A0C352D8D80F30025D1AD /* GoogleService-Info.plist */; };
 		5B2D82672A5C1A90009D26A5 /* GroupCreateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2D82662A5C1A90009D26A5 /* GroupCreateView.swift */; };
 		5B2EC2DF2A528DBB00BD253A /* ConversationsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2EC2DE2A528DBB00BD253A /* ConversationsView.swift */; };
 		5B2EC2E12A528DC400BD253A /* ConversationsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2EC2E02A528DC400BD253A /* ConversationsViewModel.swift */; };
 		5B34D8F52A3721B80013A15A /* UsersViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B34D8F42A3721B80013A15A /* UsersViewModel.swift */; };
 		5B34D8F72A3721BC0013A15A /* UsersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B34D8F62A3721BC0013A15A /* UsersView.swift */; };
-		5B4D05012D92FA73005262A1 /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 5B4D05002D92FA73005262A1 /* ExyteChat */; };
 		5B4E1BAA2A495FD500E3B27C /* UploadingManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4E1BA92A495FD500E3B27C /* UploadingManager.swift */; };
 		5B55902B2A383FCD008E13E2 /* ConversationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B55902A2A383FCD008E13E2 /* ConversationView.swift */; };
 		5B55902D2A383FE5008E13E2 /* ConversationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B55902C2A383FE5008E13E2 /* ConversationViewModel.swift */; };
@@ -24,7 +27,6 @@
 		5B5748372A3707860033C808 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5B5748362A3707860033C808 /* Preview Assets.xcassets */; };
 		5B5748452A3714AE0033C808 /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B5748442A3714AE0033C808 /* AuthViewModel.swift */; };
 		5B5748472A3714BA0033C808 /* AuthView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B5748462A3714BA0033C808 /* AuthView.swift */; };
-		5B580A3E2D9FF6E400F537F1 /* ExyteChat in Frameworks */ = {isa = PBXBuildFile; productRef = 5B580A3D2D9FF6E400F537F1 /* ExyteChat */; };
 		5B73CB432A5D465C007D80B0 /* SearchField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B73CB422A5D465C007D80B0 /* SearchField.swift */; };
 		5B73CB452A5D4A77007D80B0 /* CustomTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B73CB442A5D4A77007D80B0 /* CustomTextField.swift */; };
 		5B8D76212A5BC8CF00EDE1B7 /* Constants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8D76202A5BC8CF00EDE1B7 /* Constants.swift */; };
@@ -95,9 +97,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				5B9920EE2A4050A300995901 /* FirebaseStorage in Frameworks */,
-				5B580A3E2D9FF6E400F537F1 /* ExyteChat in Frameworks */,
-				5B4D05012D92FA73005262A1 /* ExyteChat in Frameworks */,
+				40FB815A3038D154009624FD /* ClerkKit in Frameworks */,
 				5B9920EA2A4050A300995901 /* FirebaseFirestore in Frameworks */,
+				40FB815C3038D154009624FD /* ClerkKitUI in Frameworks */,
+				40FB81573038D117009624FD /* ExyteChat in Frameworks */,
+				40FB815F3038D16B009624FD /* ConvexMobile in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -257,8 +261,10 @@
 			packageProductDependencies = (
 				5B9920E92A4050A300995901 /* FirebaseFirestore */,
 				5B9920ED2A4050A300995901 /* FirebaseStorage */,
-				5B4D05002D92FA73005262A1 /* ExyteChat */,
-				5B580A3D2D9FF6E400F537F1 /* ExyteChat */,
+				40FB81563038D117009624FD /* ExyteChat */,
+				40FB81593038D154009624FD /* ClerkKit */,
+				40FB815B3038D154009624FD /* ClerkKitUI */,
+				40FB815E3038D16B009624FD /* ConvexMobile */,
 			);
 			productName = ChatFirestoreExample;
 			productReference = 5B57482C2A3707850033C808 /* ChatFirestoreExample.app */;
@@ -290,7 +296,9 @@
 			mainGroup = 5B5748232A3707850033C808;
 			packageReferences = (
 				5B9920E82A4050A200995901 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
-				5B580A3C2D9FF6E400F537F1 /* XCLocalSwiftPackageReference "../../Chat" */,
+				40FB81553038D117009624FD /* XCLocalSwiftPackageReference "../../ChatUI" */,
+				40FB81583038D154009624FD /* XCRemoteSwiftPackageReference "clerk-ios" */,
+				40FB815D3038D16B009624FD /* XCRemoteSwiftPackageReference "convex-swift" */,
 			);
 			productRefGroup = 5B57482D2A3707850033C808 /* Products */;
 			projectDirPath = "";
@@ -481,10 +489,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"ChatFirestoreExample/Preview Content\"";
-				DEVELOPMENT_TEAM = FZXCM5CJ7P;
+				DEVELOPMENT_TEAM = CUFF45ZJR8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ChatFirestoreExample/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Grant access to camera to be able to take photos and videos";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Grant access to microphone to be able to take videos";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Grant access to photo library to be able to select photos";
@@ -500,7 +509,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.exyte.chatFirestoreExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.exyte.42xapppps.chatFirestoreExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -522,10 +531,11 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_ASSET_PATHS = "\"ChatFirestoreExample/Preview Content\"";
-				DEVELOPMENT_TEAM = FZXCM5CJ7P;
+				DEVELOPMENT_TEAM = CUFF45ZJR8;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = ChatFirestoreExample/Info.plist;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Grant access to camera to be able to take photos and videos";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Grant access to microphone to be able to take videos";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Grant access to photo library to be able to select photos";
@@ -541,7 +551,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.exyte.chatFirestoreExample;
+				PRODUCT_BUNDLE_IDENTIFIER = com.exyte.42xapppps.chatFirestoreExample;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -578,13 +588,29 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		5B580A3C2D9FF6E400F537F1 /* XCLocalSwiftPackageReference "../../Chat" */ = {
+		40FB81553038D117009624FD /* XCLocalSwiftPackageReference "../../ChatUI" */ = {
 			isa = XCLocalSwiftPackageReference;
-			relativePath = ../../Chat;
+			relativePath = ../../ChatUI;
 		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		40FB81583038D154009624FD /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.1;
+			};
+		};
+		40FB815D3038D16B009624FD /* XCRemoteSwiftPackageReference "convex-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/get-convex/convex-swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.8.1;
+			};
+		};
 		5B9920E82A4050A200995901 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -596,13 +622,24 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		5B4D05002D92FA73005262A1 /* ExyteChat */ = {
+		40FB81563038D117009624FD /* ExyteChat */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ExyteChat;
 		};
-		5B580A3D2D9FF6E400F537F1 /* ExyteChat */ = {
+		40FB81593038D154009624FD /* ClerkKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			productName = ExyteChat;
+			package = 40FB81583038D154009624FD /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		40FB815B3038D154009624FD /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 40FB81583038D154009624FD /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+		40FB815E3038D16B009624FD /* ConvexMobile */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 40FB815D3038D16B009624FD /* XCRemoteSwiftPackageReference "convex-swift" */;
+			productName = ConvexMobile;
 		};
 		5B9920E92A4050A300995901 /* FirebaseFirestore */ = {
 			isa = XCSwiftPackageProductDependency;

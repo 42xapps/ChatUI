@@ -15,6 +15,10 @@ let package = Package(
     ],
     dependencies: [
         .package(
+            url: "https://github.com/AetherMaker/FanPicker.git",
+            from: "0.2.0"
+        ),
+        .package(
             url: "https://github.com/exyte/MediaPicker.git",
             from: "3.3.2"
         ),

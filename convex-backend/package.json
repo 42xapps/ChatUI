@@ -7,15 +7,28 @@
   "scripts": {
     "dev": "convex dev",
     "deploy": "convex deploy",
-    "typecheck": "tsc --noEmit -p convex"
+    "typecheck": "tsc --noEmit -p convex",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@ai-sdk/deepseek": "^3.0.31",
+    "@ai-sdk/google": "^4.0.50",
+    "@ai-sdk/moonshotai": "^3.0.37",
+    "@ai-sdk/openai": "^4.0.46",
+    "@ai-sdk/openai-compatible": "^3.0.35",
+    "@ai-sdk/provider": "^4.0.7",
+    "@convex-dev/agent": "^0.7.1",
     "@convex-dev/r2": "^0.10.2",
+    "@convex-dev/rate-limiter": "^0.3.2",
+    "ai": "^7.0.77",
     "convex": "^1.44.0"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@types/node": "^26.2.0",
-    "typescript": "^5.9.3"
+    "convex-test": "^0.0.56",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
   },
   "allowScripts": {
     "esbuild@0.27.0": true

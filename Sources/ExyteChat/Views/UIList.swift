@@ -340,7 +340,7 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         switch operation {
         case .deleteSection, .insertSection:
             return true
-        case .delete, .insert, .swap, .edit, .editChangingHeight:
+        case .delete, .insert, .swap, .edit, .editChangingHeight, .editStreaming:
             return false
         }
     }
@@ -357,6 +357,7 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
 
         case edit(Int, Int) // reload the element without animation (otherwise it blinks)
         case editChangingHeight(Int, Int) // reload the element with simple animation
+        case editStreaming(Int, Int) // update content and smoothly recalculate self-sizing height
 
         var description: String {
             switch self {
@@ -374,6 +375,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                 return "edit section \(int) row \(int2)"
             case .editChangingHeight(let int, let int2):
                 return "editChangingHeight section \(int) row \(int2)"
+            case .editStreaming(let int, let int2):
+                return "editStreaming section \(int) row \(int2)"
             }
         }
     }
@@ -395,6 +398,17 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             tableView.reconfigureRows(at: [IndexPath(row: row, section: section)])
         case .editChangingHeight(let section, let row):
             tableView.reloadRows(at: [IndexPath(row: row, section: section)], with: .automatic)
+        case .editStreaming(let section, let row):
+            tableView.reconfigureRows(at: [IndexPath(row: row, section: section)])
+            UIView.animate(
+                withDuration: 0.16,
+                delay: 0,
+                options: [.beginFromCurrentState, .allowUserInteraction, .curveEaseOut]
+            ) {
+                tableView.beginUpdates()
+                tableView.endUpdates()
+                tableView.layoutIfNeeded()
+            }
         }
     }
 
