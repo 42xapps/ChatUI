@@ -38,7 +38,10 @@ final actor MockChatInteractor {
 
     /// TODO: Generate error with random chance
     /// TODO: Save images from url to files. Imitate upload process
-    func send(draftMessage: ExyteChat.DraftMessage) {
+    /// Building the message reads the draft's media off disk, so this has to be awaited. Appending
+    /// from a detached task instead let callers refresh their list before the message landed, which
+    /// left every sent photo showing up one send late.
+    func send(draftMessage: ExyteChat.DraftMessage) async {
         if draftMessage.id != nil {
             guard let index = messages.firstIndex(where: { $0.uid == draftMessage.id }) else {
                 // TODO: Create error
@@ -51,12 +54,8 @@ final actor MockChatInteractor {
         if Int.random(min: 0, max: 20) == 0 {
             status = .error(draftMessage)
         }
-        Task {
-            let message = await toMockMessage(draftMessage: draftMessage, user: chatData.tim, status: status)
-            //DispatchQueue.main.async { [message] in
-                self.messages.append(message)
-           // }
-        }
+        let message = await toMockMessage(draftMessage: draftMessage, user: chatData.tim, status: status)
+        messages.append(message)
     }
 
     func remove(messageID: String) {

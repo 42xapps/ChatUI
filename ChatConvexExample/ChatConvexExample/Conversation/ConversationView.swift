@@ -65,11 +65,10 @@ struct ConversationView: View {
                     Button(action: onOpenMenu) {
                         Image(systemName: "line.3.horizontal")
                     }
-                    .font(17, .black)
+                    .font(17)
                 }
             }
         }
-        .chatTheme(colors: ChatAppearance.colors)
         .giphyConfig(GiphyConfiguration(giphyKey: AppConfig.giphyApiKey))
         .task {
             await viewModel.start()

@@ -76,6 +76,13 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
     }
 
     func updateUIView(_ tableView: UITableView, context: Context) {
+        // The quick-attach fan is driven by a drag that starts on the composer; letting the list
+        // scroll underneath it steals the gesture and moves the target photos.
+        let shouldScroll = chatParams.isScrollEnabled && !inputViewModel.isScrollLocked
+        if tableView.isScrollEnabled != shouldScroll {
+            tableView.isScrollEnabled = shouldScroll
+        }
+
         if !chatParams.isScrollEnabled {
             DispatchQueue.main.async {
                 tableContentHeight = tableView.contentSize.height

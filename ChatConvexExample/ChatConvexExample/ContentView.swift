@@ -166,7 +166,7 @@ struct ContentView: View {
     private func failureView(_ message: String) -> some View {
         VStack(spacing: 16) {
             Text("Couldn't reach the chat backend")
-                .font(17, .black, .semibold)
+                .font(17, .primary, .semibold)
             Text(message)
                 .font(13, .gray)
                 .multilineTextAlignment(.center)

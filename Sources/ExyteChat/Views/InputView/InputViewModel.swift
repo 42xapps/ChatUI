@@ -5,10 +5,18 @@
 import Foundation
 import Combine
 import ExyteMediaPicker
+import FanPicker
 import SwiftUI
 
 @MainActor
 final class InputViewModel: ObservableObject {
+
+    /// Which half of the full screen picker a selection came from. They are reported through a
+    /// single callback and only the picker's mode tells them apart.
+    enum PickerSource {
+        case library
+        case camera
+    }
 
     @Published var text = ""
     @Published var attachments = InputViewAttachments()
@@ -22,8 +30,28 @@ final class InputViewModel: ObservableObject {
 
     @Published var showActivityIndicator = false
 
+    /// Set while the quick-attach fan is being held open, so the message list stops scrolling out
+    /// from under the gesture.
+    @Published var isScrollLocked = false
+    @Published var photoAccessDenied = false
+
     var recordingPlayer: RecordingPlayer?
     var didSendMessage: ((DraftMessage) -> Void)?
+
+    /// What the composer had staged before the full screen picker opened, so cancelling that
+    /// picker only discards its own session and leaves quick-attached photos alone.
+    ///
+    /// Non-nil only while that picker is on screen. Sending closes the picker, and the dismissal
+    /// makes the editor replay its last selection — without this window that replay would land the
+    /// just-sent photos back in the composer.
+    private var mediasBeforePicker: [Media]?
+
+    /// The live picker session, kept per source. The picker reports library picks and camera
+    /// captures through one callback, each carrying only its own selection, so tracking them apart
+    /// is what stops a capture from wiping everything picked from the library.
+    private var libraryPicks: [Media] = []
+    private var cameraPicks: [Media] = []
+    private var previewedPick: Media?
 
     private var recorder = Recorder()
 
@@ -39,6 +67,7 @@ final class InputViewModel: ObservableObject {
     }
 
     func onStart() {
+        RecentPhotoMediaModel.cleanTempDirectory()
         subscribeValidation()
         subscribePicker()
         subscribeGiphyPicker()
@@ -56,6 +85,8 @@ final class InputViewModel: ObservableObject {
             self?.text = ""
             self?.saveEditingClosure = nil
             self?.attachments = InputViewAttachments()
+            self?.mediasBeforePicker = nil
+            self?.clearPickerSession()
             self?.subscribeValidation()
             self?.state = .empty
         }
@@ -72,6 +103,58 @@ final class InputViewModel: ObservableObject {
     func edit(_ closure: @escaping (String) -> Void) {
         saveEditingClosure = closure
         state = .editing
+    }
+
+    func appendRecentPhoto(_ selection: RecentPhotoSelection) {
+        attachments.medias.append(Media(recentPhoto: selection))
+        attachments.mediaPreviews[selection.id] = selection.asset.image
+    }
+
+    func removeAttachment(id: UUID) {
+        attachments.medias.removeAll { $0.id == id }
+        attachments.mediaPreviews[id] = nil
+        RecentPhotoMediaModel.cleanup(id: id)
+    }
+
+    /// Replaces what `source` currently contributes to the picker session and restages the whole
+    /// session on top of what the composer already held.
+    func stagePickerSelection(_ picked: [Media], from source: PickerSource) {
+        switch source {
+        case .library:
+            libraryPicks = picked
+        case .camera:
+            cameraPicks = picked
+        }
+        restagePickerSession()
+    }
+
+    /// Photos opened full screen in the picker count as the selection when nothing is checked.
+    func stagePreviewedMedia(_ media: Media?) {
+        previewedPick = media
+        restagePickerSession()
+    }
+
+    func cancelPicker() {
+        if let mediasBeforePicker {
+            attachments.medias = mediasBeforePicker
+        }
+        showPicker = false
+    }
+
+    /// Does nothing once the picker has closed, since by then its selection has either been staged
+    /// already or deliberately discarded. Without that window, the replay the editor performs as
+    /// the picker goes away would land a just-sent photo back in the composer.
+    private func restagePickerSession() {
+        guard let mediasBeforePicker else { return }
+        let checked = libraryPicks + cameraPicks
+        let session = checked.isEmpty ? [previewedPick].compactMap { $0 } : checked
+        attachments.medias = mediasBeforePicker + session
+    }
+
+    private func clearPickerSession() {
+        libraryPicks = []
+        cameraPicks = []
+        previewedPick = nil
     }
 
     func inputViewAction() -> (InputViewAction) -> Void {
@@ -207,10 +290,10 @@ private extension InputViewModel {
   
     func subscribePicker() {
         $showPicker
-            .sink { [weak self] value in
-                if !value {
-                    self?.attachments.medias = []
-                }
+            .sink { [weak self] isPresented in
+                guard let self else { return }
+                mediasBeforePicker = isPresented ? attachments.medias : nil
+                clearPickerSession()
             }
             .store(in: &subscriptions)
     }

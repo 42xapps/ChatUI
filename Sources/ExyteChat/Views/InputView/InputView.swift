@@ -6,8 +6,10 @@
 //
 
 import ExyteMediaPicker
+import FanPicker
 import GiphyUISDK
 import SwiftUI
+import UIKit
 
 public enum InputViewStyle: Sendable {
     case message
@@ -66,6 +68,9 @@ public enum AvailableInputType: Sendable {
 
 public struct InputViewAttachments {
     var medias: [Media] = []
+    /// Ready-made previews for photos quick-attached from the fan, keyed by `Media.id`. They let
+    /// the hero animation land on a real image instantly; everything else loads from disk.
+    var mediaPreviews: [UUID: UIImage] = [:]
     var recording: Recording?
     var giphyMedia: GPHMedia?
     var replyMessage: ReplyMessage?
@@ -125,6 +130,22 @@ struct InputView: View {
     /// Diameter of the circular attach / send / record chips.
     static let controlChipSize: CGFloat = 36
 
+    /// FanPicker's reference sizing assumes a roomier composer; its 112pt attachments would
+    /// dominate this card, so the destination thumbnails are brought down to match the chips.
+    private var quickAttachConfiguration: FanPickerConfiguration {
+        var configuration = FanPickerConfiguration.reference
+        configuration.attachmentSize = 72
+        configuration.attachmentCornerRadius = 14
+        // The reference 8pt leaves the fan sitting almost on the composer. This card's glass
+        // edge needs more breathing room for the row to read as floating above it.
+        configuration.rowToControlGap = 16
+        return configuration
+    }
+
+    /// Lines the overlaid trigger up with the slot it replaces: the card's content inset, less the
+    /// 2pt that FanPicker's 40pt trigger box already adds around a `controlChipSize` chip.
+    private var triggerInset: CGFloat { composerContentPadding - 2 }
+
     @State private var showAttachMenu = false
 
     @State private var overlaySize: CGSize = .zero
@@ -138,14 +159,52 @@ struct InputView: View {
     @State private var cancelGesture = false
     private let tapDelay = 0.2
 
+    @ViewBuilder
     var body: some View {
+        if isQuickAttachEnabled {
+            RecentPhotoQuickPicker(
+                configuration: quickAttachConfiguration,
+                onTapTrigger: { showAttachMenu = true },
+                onPhotoAccessUnavailable: { _ in viewModel.photoAccessDenied = true },
+                onSelect: viewModel.appendRecentPhoto,
+                onScrollLockChanged: { viewModel.isScrollLocked = $0 }
+            ) { picker in
+                composerBody(picker)
+            }
+            .alert(
+                localization.photoAccessDeniedTitle,
+                isPresented: $viewModel.photoAccessDenied
+            ) {
+                Button(localization.notNowText, role: .cancel) {}
+                Button(localization.openSettingsText, action: openSettings)
+            } message: {
+                Text(localization.photoAccessDeniedMessage)
+            }
+        } else {
+            composerBody(nil)
+        }
+    }
+
+    /// The quick-attach fan hangs off the `+` button, and `InputView` is also rendered in
+    /// `.signature` style *inside* the full screen picker, where a second picker makes no sense.
+    private var isQuickAttachEnabled: Bool {
+        style == .message && isMediaAvailable()
+    }
+
+    /// Whether the card is showing the compose row that owns the attach chip, rather than the
+    /// legacy single-row layout used for `.signature` and recording.
+    private var usesComposerLayout: Bool {
+        style != .signature && !isRecordingState
+    }
+
+    private func composerBody(_ picker: RecentPhotoPickerContext?) -> some View {
         VStack(spacing: 8) {
             viewOnTop
                 .padding(.top, 6)
                 .transition(.move(edge: .bottom))
 
             HStack(alignment: .bottom, spacing: 10) {
-                composerCard
+                composerCard(picker)
 
                 if state == .editing {
                     editingButtons
@@ -175,27 +234,52 @@ struct InputView: View {
     /// `.signature` style and recording keep the original single-row layout (re-skinned with
     /// the new glass background); the normal `.message` compose flow morphs between compact
     /// and expanded via `ComposerLayout`, driven purely by focus.
-    @ViewBuilder
-    private var composerCard: some View {
+    private func composerCard(_ picker: RecentPhotoPickerContext?) -> some View {
         Group {
-            if style == .signature || isRecordingState {
+            if !usesComposerLayout {
                 legacyComposerRow
             } else {
-                ComposerLayout(isExpanded: isExpanded, spacing: isExpanded ? 12 : 4) {
-                    attachSlot
-                    TextInputView(
-                        text: $viewModel.text,
-                        inputFieldId: inputFieldId,
-                        style: style,
-                        availableInputs: availableInputs,
-                        localization: localization
-                    )
-                    trailingSlot
+                VStack(alignment: .leading, spacing: 8) {
+                    if !viewModel.attachments.medias.isEmpty {
+                        ComposerAttachmentStrip(
+                            medias: viewModel.attachments.medias,
+                            previews: viewModel.attachments.mediaPreviews,
+                            configuration: quickAttachConfiguration,
+                            picker: picker,
+                            onRemove: viewModel.removeAttachment,
+                            removeLabel: localization.removeAttachmentText
+                        )
+                    }
+
+                    ComposerLayout(isExpanded: isExpanded, spacing: isExpanded ? 12 : 4) {
+                        attachSlot(picker)
+                        TextInputView(
+                            text: $viewModel.text,
+                            inputFieldId: inputFieldId,
+                            style: style,
+                            availableInputs: availableInputs,
+                            localization: localization
+                        )
+                        trailingSlot
+                    }
                 }
                 .padding(composerContentPadding)
             }
         }
         .adaptiveGlass(in: composerShape)
+        // Blurs the card as a single layer while the fan is open. The trigger is overlaid after
+        // this so it stays sharp and interactive.
+        .quickAttachBlur(picker, in: composerShape)
+        // `ComposerLayout` bottom-aligns the attach slot in both its compact and expanded modes,
+        // so the trigger can sit in the card's bottom-leading corner the way FanPicker expects,
+        // above the blur layer.
+        .overlay(alignment: .bottomLeading) {
+            // Recording swaps in `legacyComposerRow`, which has no attach slot to stand in for.
+            if let picker, usesComposerLayout {
+                quickAttachTrigger(picker)
+                    .padding(triggerInset)
+            }
+        }
         .overlay {
             composerShape
                 .strokeBorder(theme.colors.mainText.opacity(0.12), lineWidth: 1)
@@ -213,12 +297,35 @@ struct InputView: View {
     }
 
     @ViewBuilder
-    private var attachSlot: some View {
+    private func attachSlot(_ picker: RecentPhotoPickerContext?) -> some View {
         if isMediaAvailable() || isGiphyAvailable() {
-            attachButton
+            if picker != nil {
+                // Reserves the chip's space in the layout; the trigger itself is overlaid on the
+                // card so the blur never covers it.
+                Color.clear
+                    .frame(width: Self.controlChipSize, height: Self.controlChipSize)
+            } else {
+                attachButton
+            }
         } else {
             Color.clear.frame(width: 1, height: 1)
         }
+    }
+
+    /// FanPicker's trigger owns the tap, the hold, the drag and the anchor the fan is laid out
+    /// from, so it is used as-is. The chip frame is kept so the fan still anchors where the
+    /// composer expects it. Tapping it opens the attach menu; holding it opens the fan.
+    private func quickAttachTrigger(_ picker: RecentPhotoPickerContext) -> some View {
+        picker.trigger
+            .frame(width: Self.controlChipSize, height: Self.controlChipSize)
+            .popover(isPresented: $showAttachMenu) {
+                attachMenuContent
+            }
+    }
+
+    private func openSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     @ViewBuilder
@@ -410,7 +517,6 @@ struct InputView: View {
                 .font(.system(size: 20, weight: .regular))
                 .foregroundColor(theme.colors.inputIcon)
                 .frame(width: Self.controlChipSize, height: Self.controlChipSize)
-                .background(Circle().fill(theme.colors.mainText.opacity(0.06)))
         }
         .popover(isPresented: $showAttachMenu) {
             attachMenuContent
@@ -716,6 +822,23 @@ struct InputView: View {
 
     private func isMediaAvailable() -> Bool {
         return availableInputs.contains(AvailableInputType.media)
+    }
+}
+
+private extension View {
+
+    @ViewBuilder
+    func quickAttachBlur<S: Shape>(
+        _ picker: RecentPhotoPickerContext?,
+        in shape: S
+    ) -> some View {
+        if let picker {
+            // The glass already supplies the card's background, so the blur layer only needs to
+            // dim and blur what is on top of it.
+            fanPickerBlur(context: picker, clippedTo: shape) { Color.clear }
+        } else {
+            self
+        }
     }
 }
 
