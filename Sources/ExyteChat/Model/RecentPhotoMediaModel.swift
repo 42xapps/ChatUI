@@ -13,6 +13,7 @@ import UIKit
 /// path as anything picked through the full screen media picker.
 struct RecentPhotoMediaModel: MediaModelProtocol {
 
+    let id: UUID
     let asset: RecentPhotoAsset
 
     private let files = RecentPhotoFileCache()
@@ -40,7 +41,7 @@ struct RecentPhotoMediaModel: MediaModelProtocol {
     func getThumbnailURL() async -> URL? {
         await files.url(.thumbnail) {
             guard let data = await getThumbnailData() else { return nil }
-            return try? Self.write(data, named: "thumbnail.jpg")
+            return try? write(data, named: "thumbnail.jpg")
         }
     }
 
@@ -61,24 +62,40 @@ struct RecentPhotoMediaModel: MediaModelProtocol {
 
     private func writeFullImage() async throws -> URL {
         let image = try await asset.loadImageData()
-        return try Self.write(image.data, named: "photo.\(image.fileExtension)")
+        return try write(image.data, named: "photo.\(image.fileExtension)")
     }
 
-    private static func write(_ data: Data, named name: String) throws -> URL {
-        let url = try makeUniqueDirectory().appendingPathComponent(name)
+    private func write(_ data: Data, named name: String) throws -> URL {
+        let url = try directoryURL().appendingPathComponent(name)
         try data.write(to: url)
         return url
     }
 
-    private static func makeUniqueDirectory() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("ExyteChatQuickAttach", isDirectory: true)
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    private func directoryURL() throws -> URL {
+        let directory = Self.directory(for: id)
         try FileManager.default.createDirectory(
             at: directory,
             withIntermediateDirectories: true
         )
         return directory
+    }
+
+    static func directory(for id: UUID) -> URL {
+        baseTempDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
+    }
+
+    static var baseTempDirectory: URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("ExyteChatQuickAttach", isDirectory: true)
+    }
+
+    static func cleanup(id: UUID) {
+        let dir = directory(for: id)
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    static func cleanTempDirectory() {
+        try? FileManager.default.removeItem(at: baseTempDirectory)
     }
 }
 
@@ -87,7 +104,7 @@ extension Media {
     /// Wraps a quick-attach selection, reusing the selection's id so FanPicker can match the fan
     /// thumbnail to the composer attachment it flies into.
     init(recentPhoto selection: RecentPhotoSelection) {
-        self.init(source: RecentPhotoMediaModel(asset: selection.asset))
+        self.init(source: RecentPhotoMediaModel(id: selection.id, asset: selection.asset))
         id = selection.id
     }
 }

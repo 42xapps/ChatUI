@@ -67,6 +67,7 @@ final class InputViewModel: ObservableObject {
     }
 
     func onStart() {
+        RecentPhotoMediaModel.cleanTempDirectory()
         subscribeValidation()
         subscribePicker()
         subscribeGiphyPicker()
@@ -112,6 +113,7 @@ final class InputViewModel: ObservableObject {
     func removeAttachment(id: UUID) {
         attachments.medias.removeAll { $0.id == id }
         attachments.mediaPreviews[id] = nil
+        RecentPhotoMediaModel.cleanup(id: id)
     }
 
     /// Replaces what `source` currently contributes to the picker session and restages the whole

@@ -64,7 +64,8 @@ struct AttachmentsEditor: View {
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
             }
             .didPressCancelCamera {
-                inputViewModel.showPicker = false
+                currentFullscreenMedia = nil
+                inputViewModel.cancelPicker()
             }
             .currentFullscreenMedia($currentFullscreenMedia)
             .pickerMode($inputViewModel.mediaPickerMode)
