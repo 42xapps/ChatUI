@@ -16,15 +16,9 @@ options:
 packages:
   ExyteChat:
     path: ..
-  # Pinned to match the repo's committed Package.resolved. ExyteChat's
-  # Package.swift asks for `from: "3.3.2"`, which permits 3.4.6 — but 3.4.6
-  # removed the `currentFullscreenMedia` modifier that
-  # Views/Attachments/AttachmentsEditor.swift calls, so an unconstrained
-  # resolution breaks the package. Remove this once Package.swift bounds the
-  # requirement itself.
   MediaPicker:
     url: https://github.com/exyte/MediaPicker.git
-    exactVersion: 3.3.2
+    from: 3.4.6
   clerk-ios:
     url: https://github.com/clerk/clerk-ios.git
     from: 1.4.1
