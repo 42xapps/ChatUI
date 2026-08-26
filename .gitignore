@@ -131,3 +131,6 @@ iOSInjectionProject/
 /.build/
 GoogleService-Info.plist
 Instructions.md
+.claude/
+.darkmode-check/
+

@@ -76,7 +76,7 @@ private struct EmptyChatView: View {
                     .font(.system(size: 44, weight: .light))
                     .foregroundStyle(.secondary)
                 Text("No chats yet")
-                    .font(20, .black, .semibold)
+                    .font(20, .primary, .semibold)
                 Button("Start a new chat", action: onNewChat)
                     .font(17, .white, .medium)
                     .padding(.horizontal, 20)
@@ -89,7 +89,7 @@ private struct EmptyChatView: View {
                     Button(action: onOpenMenu) {
                         Image(systemName: "line.3.horizontal")
                     }
-                    .font(17, .black)
+                    .font(17)
                 }
             }
         }

@@ -9,25 +9,17 @@ import SwiftUI
 import ExyteMediaPicker
 import ActivityIndicatorView
 
-struct AttachmentsEditor<InputViewContent: View>: View {
-    
-    typealias InputViewBuilderParamsClosure = ChatView<EmptyView, InputViewContent, DefaultMessageMenuAction>.InputViewBuilderParamsClosure
+struct AttachmentsEditor: View {
 
     @Environment(\.chatTheme) var theme
     @Environment(\.mediaPickerTheme) var mediaPickerTheme
     @Environment(\.mediaPickerThemeIsOverridden) var mediaPickerThemeIsOverridden
 
-    @EnvironmentObject private var keyboardState: KeyboardState
-    @EnvironmentObject private var globalFocusState: GlobalFocusState
-
     @ObservedObject var inputViewModel: InputViewModel
 
-    var inputViewBuilder: InputViewBuilderParamsClosure
     var mediaPickerParameters: MediaPickerParameters
-    var availableInputs: [AvailableInputType]
     var localization: ChatLocalization
 
-    @State private var seleсtedMedias: [Media] = []
     @State private var currentFullscreenMedia: Media?
 
     var showingAlbums: Bool {
@@ -46,17 +38,17 @@ struct AttachmentsEditor<InputViewContent: View>: View {
 
     var mediaPicker: some View {
         GeometryReader { g in
-            MediaPicker(isPresented: $inputViewModel.showPicker) {
-                seleсtedMedias = $0
-                assembleSelectedMedia()
+            MediaPicker(isPresented: $inputViewModel.showPicker) { picked in
+                inputViewModel.stagePickerSelection(
+                    picked,
+                    from: inputViewModel.mediaPickerMode.pickerSource
+                )
             } albumSelectionBuilder: { _, albumSelectionView, _ in
                 VStack {
                     albumSelectionHeaderView
                         .padding(.top, g.safeAreaInsets.top)
                     albumSelectionView
                     Spacer()
-                    inputView
-                        .padding(.bottom, g.safeAreaInsets.bottom)
                 }
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
             } cameraSelectionBuilder: { _, cancelClosure, cameraSelectionView in
@@ -68,8 +60,6 @@ struct AttachmentsEditor<InputViewContent: View>: View {
                         }
                         .padding(.top, g.safeAreaInsets.top)
                     Spacer()
-                    inputView
-                        .padding(.bottom, g.safeAreaInsets.bottom)
                 }
                 .background(mediaPickerTheme.main.pickerBackground.ignoresSafeArea())
             }
@@ -83,16 +73,13 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             .background(theme.colors.mainBG)
             .ignoresSafeArea(.all)
             .onChange(of: currentFullscreenMedia) {
-                assembleSelectedMedia()
+                inputViewModel.stagePreviewedMedia(currentFullscreenMedia)
             }
-            .onChange(of: inputViewModel.showPicker) {
-                let showFullscreenPreview = mediaPickerParameters.selectionParameters.showFullscreenPreview
-                let selectionLimit = mediaPickerParameters.selectionParameters.selectionLimit ?? 1
-
-                if selectionLimit == 1 && !showFullscreenPreview {
-                    assembleSelectedMedia()
-                    inputViewModel.send()
-                }
+            .onChange(of: inputViewModel.showPicker) { _, isPresented in
+                // Once the picker is gone this is only a stale mirror of a finished session, and
+                // leaving it behind would let the next session reopen with it.
+                guard !isPresented else { return }
+                currentFullscreenMedia = nil
             }
             .applyIf(!mediaPickerThemeIsOverridden) {
                 $0.mediaPickerTheme(
@@ -109,41 +96,17 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         }
     }
 
-    func assembleSelectedMedia() {
-        if !seleсtedMedias.isEmpty {
-            inputViewModel.attachments.medias = seleсtedMedias
-        } else if let media = currentFullscreenMedia {
-            inputViewModel.attachments.medias = [media]
-        } else {
-            inputViewModel.attachments.medias = []
-        }
-    }
-
+    /// Confirms the picker without sending, leaving the selection staged in the chat's composer.
+    /// Only offered once something is staged, since otherwise it would just duplicate Cancel.
     @ViewBuilder
-    var inputView: some View {
-        let customInputView = inputViewBuilder(
-            InputViewBuilderParameters(
-                text: $inputViewModel.text,
-                attachments: inputViewModel.attachments,
-                inputViewState: inputViewModel.state,
-                inputViewStyle: .signature,
-                inputViewActionClosure: inputViewModel.inputViewAction()
-            ) {
-                globalFocusState.focus = nil
+    var confirmButton: some View {
+        if !inputViewModel.attachments.medias.isEmpty {
+            Button {
+                inputViewModel.showPicker = false
+            } label: {
+                Text(localization.addAttachmentsText)
+                    .fontWeight(.semibold)
             }
-        )
-
-        if customInputView is DummyView {
-            InputView(
-                viewModel: inputViewModel,
-                inputFieldId: UUID(),
-                style: .signature,
-                availableInputs: availableInputs,
-                localization: localization
-            )
-        } else {
-            customInputView
-                .customFocus($globalFocusState.focus, equals: .uuid(UUID()))
         }
     }
 
@@ -151,13 +114,15 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         ZStack {
             HStack {
                 Button {
-                    seleсtedMedias = []
-                    inputViewModel.showPicker = false
+                    currentFullscreenMedia = nil
+                    inputViewModel.cancelPicker()
                 } label: {
                     Text(localization.cancelButtonText)
                 }
 
                 Spacer()
+
+                confirmButton
             }
 
             HStack {
@@ -177,7 +142,7 @@ struct AttachmentsEditor<InputViewContent: View>: View {
         .padding(.bottom, 5)
     }
 
-    func cameraSelectionHeaderView(cancelClosure: @escaping ()->()) -> some View {
+    private func cameraSelectionHeaderView(cancelClosure: @escaping ()->()) -> some View {
         HStack {
             Button(action: cancelClosure) {
                 theme.images.mediaPicker.cross
@@ -187,7 +152,26 @@ struct AttachmentsEditor<InputViewContent: View>: View {
             .padding(.trailing, 30)
 
             Spacer()
+
+            // The camera used to rely on the removed input row to get out with its captures.
+            confirmButton
+                .foregroundColor(mediaPickerTheme.main.pickerText)
         }
         .padding(.horizontal)
+    }
+}
+
+private extension MediaPickerMode {
+
+    /// The picker switches into a camera mode before it reports a capture, so the mode is what
+    /// attributes an incoming selection to the camera rather than the library. Deliberately
+    /// exhaustive: a new mode upstream should fail to build rather than be filed as a library pick.
+    var pickerSource: InputViewModel.PickerSource {
+        switch self {
+        case .camera, .cameraSelection:
+            .camera
+        case .photos, .albums, .album:
+            .library
+        }
     }
 }

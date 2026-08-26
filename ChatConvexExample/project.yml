@@ -75,7 +75,6 @@ targets:
         # as pre-iOS-13 and letterboxes it at a legacy aspect ratio, which shows
         # up as black bars above and below the content.
         UILaunchScreen: {}
-        UIUserInterfaceStyle: Light
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

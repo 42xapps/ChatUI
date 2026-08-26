@@ -177,9 +177,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             .fullScreenCover(isPresented: $inputViewModel.showPicker) {
                 AttachmentsEditor(
                     inputViewModel: inputViewModel,
-                    inputViewBuilder: inputViewBuilder,
                     mediaPickerParameters: inputViewCustomizationParameters.mediaPickerParameters,
-                    availableInputs: inputViewCustomizationParameters.availableInputs,
                     localization: chatCustomizationParameters.localization
                 )
                 .environmentObject(globalFocusState)
