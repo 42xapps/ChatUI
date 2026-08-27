@@ -108,7 +108,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 keyboard: keyboardState.keyboardFrame
             ))
         }
-            .background(chatBackground())
+            // The composer reserves the lower safe area. Extend the chat background through
+            // that reservation so a host's outer background cannot appear as a separate dark
+            // strip beneath the composer.
+            .background {
+                chatBackground()
+                    .ignoresSafeArea(.container, edges: .bottom)
+            }
             // Blur parent when fullscreen media sheet is shown
             .blur(radius: viewModel.fullscreenAttachmentPresented ? 12 : 0)
             .animation(.easeInOut(duration: 0.35), value: viewModel.fullscreenAttachmentPresented)
