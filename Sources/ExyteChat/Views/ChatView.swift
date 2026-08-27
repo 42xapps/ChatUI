@@ -12,12 +12,12 @@ import SwiftUI
 public typealias MediaPickerLiveCameraStyle = LiveCameraCellStyle
 public typealias MediaPickerSelectionParameters = SelectionParameters
 
-public enum ChatType: CaseIterable, Sendable {
+public enum ChatType: CaseIterable, Sendable, Equatable {
     case conversation  // the latest message is at the bottom, new messages appear from the bottom
     case comments  // the latest message is at the top, new messages appear from the top
 }
 
-public enum ReplyMode: CaseIterable, Sendable {
+public enum ReplyMode: CaseIterable, Sendable, Equatable {
     case quote  // when replying to message A, new message will appear as the newest message, quoting message A in its body
     case answer  // when replying to message A, new message with appear direclty below message A as a separate cell without duplicating message A in its body
 }
@@ -58,9 +58,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// message menu customization: create enum complying to MessageMenuAction and pass a closure processing your enum cases
     var messageMenuAction: MessageMenuActionClosure
 
+    var messages: [Message]
     var type: ChatType
-    var sections: [MessagesSection]
-    var ids: [String]
+    var replyMode: ReplyMode
     var didSendMessage: (DraftMessage) -> Void
     var didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)?
 
@@ -88,6 +88,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     @StateObject private var globalFocusState = GlobalFocusState()
     @StateObject private var networkMonitor = NetworkMonitor()
     @StateObject private var keyboardState = KeyboardState()
+    @StateObject var messageProjection: MessageProjectionCache
 
     @State private var pendingScrollTo: ScrollToParams?
     @State private var isScrolledToBottom: Bool = true
@@ -97,7 +98,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
     @State private var isShowingMenu = false
 
-    /// Measured height of the floating composer, including the bottom safe area it sits above.
+    /// Measured height of the floating composer itself, excluding the system safe area.
     /// Drives the message list's content inset so messages clear the composer as it grows.
     @State private var floatingComposerHeight: CGFloat = 0
 
@@ -111,6 +112,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             .blur(radius: viewModel.fullscreenAttachmentPresented ? 12 : 0)
             .animation(.easeInOut(duration: 0.35), value: viewModel.fullscreenAttachmentPresented)
             .environmentObject(keyboardState)
+            .onChange(of: projectionInput) { _, input in
+                messageProjection.update(with: input)
+            }
             .onAppear {
                 if isGiphyAvailable() {
                     if let giphyKey = giphyConfig.giphyKey {
@@ -187,7 +191,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 DocumentPickerView()
             }
             .sheet(isPresented: $viewModel.fullscreenAttachmentPresented) {
-                let attachments = sections.flatMap { section in
+                let attachments = messageProjection.sections.flatMap { section in
                     section.rows.flatMap { $0.message.attachments }
                 }
                 let index = attachments.firstIndex {
@@ -220,13 +224,17 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             if shouldFloatInputView {
                 ZStack(alignment: .bottom) {
                     listWithButton
-                        .ignoresSafeArea(edges: [.top, .bottom])
+                        // The list may extend through the static top and bottom container areas so
+                        // the glass composer keeps its content-underlay. It must still respect the
+                        // keyboard safe area; ignoring it here leaves the composer behind the
+                        // keyboard when the text field becomes focused.
+                        .ignoresSafeArea(.container, edges: [.top, .bottom])
                     inputView
                         .background(
                             GeometryReader { proxy in
                                 Color.clear.preference(
                                     key: FloatingComposerHeightKey.self,
-                                    value: proxy.size.height + proxy.safeAreaInsets.bottom
+                                    value: proxy.size.height
                                 )
                             }
                         )
@@ -275,7 +283,11 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         // Measured, not fixed. The composer switches to a taller two-row layout once the draft
         // wraps (see `ComposerLayout`) and keeps growing with it, so a constant sized for the
         // compact state leaves the newest messages sitting behind it.
-        let floatingComposerInset = floatingComposerHeight + floatingComposerGap
+        let floatingComposerInset = FloatingComposerLayout.messageInset(
+            composerHeight: floatingComposerHeight,
+            staticBottomInset: UIApplication.safeArea.bottom,
+            gap: floatingComposerGap
+        )
         // NOTE: top and bottom are vice versa here — the conversation table is upside down.
         params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
         return params
@@ -348,8 +360,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             // MARK: - Data / type
 
             type: type,
-            sections: sections,
-            ids: ids,
+            sections: messageProjection.sections,
+            ids: messageProjection.ids,
 
             // MARK: - Customization
 
@@ -557,13 +569,53 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         inputViewCustomizationParameters.availableInputs.contains(AvailableInputType.giphy)
     }
 
-    /// The chat's most recently created message, if any. `sections`/`ids` are already sorted
-    /// newest-first for `.conversation`, so this is cheap and doesn't require holding onto the
-    /// raw `messages` array. Scoped to `.conversation` to match the existing send-triggered
-    /// scroll-to-bottom behavior above.
+    /// The chat's most recently created message, if any. Sections are already sorted newest-first
+    /// for `.conversation`, so this is cheap. Scoped to `.conversation` to match the existing
+    /// send-triggered scroll-to-bottom behavior above.
     private var newestMessage: Message? {
         guard type == .conversation else { return nil }
-        return sections.first?.rows.first?.message
+        return messageProjection.sections.first?.rows.first?.message
+    }
+
+    private var projectionInput: MessageProjectionInput {
+        MessageProjectionInput(messages: messages, chatType: type, replyMode: replyMode)
+    }
+
+    public init(
+        messages: [Message],
+        chatType: ChatType = .conversation,
+        replyMode: ReplyMode = .quote,
+        didSendMessage: @escaping (DraftMessage) -> Void,
+        @ViewBuilder messageBuilder: @escaping (_ params: MessageBuilderParameters) -> MessageContent = { _ in
+            DummyView()
+        },
+        @ViewBuilder inputViewBuilder: @escaping (_ params: InputViewBuilderParameters) -> InputViewContent = { _ in
+            DummyView()
+        },
+        messageMenuAction: @escaping (
+            _ selectedMenuAction: MenuAction,
+            _ defaultActionClosure: @escaping (Message, DefaultMessageMenuAction) -> Void,
+            _ message: Message
+        ) -> Void = { (selectedMenuAction: DefaultMessageMenuAction, defaultActionClosure, message) in
+            defaultActionClosure(message, selectedMenuAction)
+        },
+        didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)? = nil
+    ) {
+        self.messages = messages
+        self.type = chatType
+        self.replyMode = replyMode
+        self._messageProjection = StateObject(
+            wrappedValue: MessageProjectionCache(
+                messages: messages,
+                chatType: chatType,
+                replyMode: replyMode
+            )
+        )
+        self.didSendMessage = didSendMessage
+        self.messageBuilder = messageBuilder
+        self.inputViewBuilder = inputViewBuilder
+        self.messageMenuAction = messageMenuAction
+        self.didUpdateAttachmentStatus = didUpdateAttachmentStatus
     }
 }
 
@@ -620,7 +672,20 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 //}
 
 /// Breathing room between the newest message and the floating composer.
-private let floatingComposerGap: CGFloat = 8
+let floatingComposerGap: CGFloat = 8
+
+/// Keeps the inverted conversation table clear of the floating composer without coupling its
+/// inset to the keyboard. `UIApplication.safeArea` is the window's static container inset; the
+/// composer itself follows the keyboard through SwiftUI's normal safe-area behaviour.
+enum FloatingComposerLayout {
+    static func messageInset(
+        composerHeight: CGFloat,
+        staticBottomInset: CGFloat,
+        gap: CGFloat = floatingComposerGap
+    ) -> CGFloat {
+        max(0, composerHeight) + max(0, staticBottomInset) + max(0, gap)
+    }
+}
 
 /// Reports the floating composer's rendered height up to `ChatView`, so the message list can
 /// inset by however tall it currently is rather than a constant.
