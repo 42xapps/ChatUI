@@ -22,6 +22,22 @@ struct ChatStabilityTests {
         )
     }
 
+    @Test("Keyboard overlap is scoped to the embedded chat container")
+    func keyboardOverlapUsesOnlyIntersectingHeight() {
+        #expect(
+            KeyboardLayout.overlap(
+                container: CGRect(x: 0, y: 44, width: 390, height: 800),
+                keyboard: CGRect(x: 0, y: 600, width: 390, height: 300)
+            ) == 244
+        )
+        #expect(
+            KeyboardLayout.overlap(
+                container: CGRect(x: 0, y: 44, width: 390, height: 500),
+                keyboard: CGRect(x: 0, y: 600, width: 390, height: 300)
+            ) == 0
+        )
+    }
+
     @Test("Message projection is rebuilt only when its input changes")
     @MainActor
     func messageProjectionCachesUnchangedInput() {

@@ -102,7 +102,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     @State private var selectedGiphyMedia: GPHMedia? = nil
 
     public var body: some View {
-        mainView
+        GeometryReader { proxy in
+            mainView(keyboardOverlap: KeyboardLayout.overlap(
+                container: proxy.frame(in: .global),
+                keyboard: keyboardState.keyboardFrame
+            ))
+        }
             .background(chatBackground())
             // Blur parent when fullscreen media sheet is shown
             .blur(radius: viewModel.fullscreenAttachmentPresented ? 12 : 0)
@@ -210,7 +215,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
     }
 
-    var mainView: some View {
+    func mainView(keyboardOverlap: CGFloat) -> some View {
         VStack(spacing: 0) {
             if chatCustomizationParameters.showNetworkConnectionProblem, !networkMonitor.isConnected
             {
@@ -227,6 +232,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     .ignoresSafeArea(.container, edges: .top)
                     .safeAreaInset(edge: .bottom, spacing: 0) {
                         inputView
+                            // The host can opt out of SwiftUI's keyboard-safe-area resizing
+                            // (for example, a full-screen transformed drawer). The explicit
+                            // overlap keeps the composer attached to the system keyboard in
+                            // that case. This padding is part of the inset, so UIList receives
+                            // the identical reservation and its newest cell cannot sit beneath
+                            // the composer.
+                            .padding(.bottom, keyboardOverlap)
                     }
             } else if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
@@ -243,7 +255,10 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         }
         // Used to prevent ChatView movement during Emoji Keyboard invocation
-        .ignoresSafeArea(isShowingMenu ? .keyboard : [])
+        // Own floating-composer keyboard avoidance explicitly. This prevents an ancestor that
+        // ignores the keyboard safe area from making the transcript and composer disagree about
+        // their available height. Other ChatView configurations retain the system default.
+        .ignoresSafeArea(shouldFloatInputView || isShowingMenu ? .keyboard : [])
     }
 
     /// The floating glass composer (see `InputView`) is designed to sit on top of the message
@@ -661,5 +676,15 @@ enum FloatingComposerLayout {
         gap: CGFloat = floatingComposerGap
     ) -> CGFloat {
         max(max(0, existingInset), max(0, gap))
+    }
+}
+
+/// Keyboard notifications are expressed in screen coordinates while `ChatView` can be embedded
+/// in a transformed container. Intersecting the two frames gives the exact bottom padding that
+/// keeps the composer directly above the keyboard without relying on any ancestor's safe area.
+enum KeyboardLayout {
+    static func overlap(container: CGRect, keyboard: CGRect) -> CGFloat {
+        guard !keyboard.isEmpty, container.intersects(keyboard) else { return 0 }
+        return max(0, min(container.maxY, keyboard.maxY) - max(container.minY, keyboard.minY))
     }
 }
