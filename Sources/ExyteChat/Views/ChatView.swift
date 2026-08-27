@@ -98,10 +98,6 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
     @State private var isShowingMenu = false
 
-    /// Measured height of the floating composer itself, excluding the system safe area.
-    /// Drives the message list's content inset so messages clear the composer as it grows.
-    @State private var floatingComposerHeight: CGFloat = 0
-
     @State private var giphyConfigured = false
     @State private var selectedGiphyMedia: GPHMedia? = nil
 
@@ -222,26 +218,16 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
 
             if shouldFloatInputView {
-                ZStack(alignment: .bottom) {
-                    listWithButton
-                        // The list may extend through the static top and bottom container areas so
-                        // the glass composer keeps its content-underlay. It must still respect the
-                        // keyboard safe area; ignoring it here leaves the composer behind the
-                        // keyboard when the text field becomes focused.
-                        .ignoresSafeArea(.container, edges: [.top, .bottom])
-                    inputView
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(
-                                    key: FloatingComposerHeightKey.self,
-                                    value: proxy.size.height
-                                )
-                            }
-                        )
-                }
-                .onPreferenceChange(FloatingComposerHeightKey.self) { height in
-                    floatingComposerHeight = height
-                }
+                listWithButton
+                    // The transcript can extend through the static top container area, but it
+                    // must remain in the keyboard-respecting layout region. A bottom
+                    // `safeAreaInset` participates in the system keyboard animation and gives
+                    // the UIKit-backed list a matching safe area, so the composer and newest
+                    // message stay together during focus changes and multiline expansion.
+                    .ignoresSafeArea(.container, edges: .top)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        inputView
+                    }
             } else if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
                 if let builder = betweenListAndInputViewBuilder {
@@ -270,26 +256,19 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             && betweenListAndInputViewBuilder == nil
     }
 
-    /// A true `ZStack` overlay (not `safeAreaInset`/`safeAreaBar`) lets the message list's own
-    /// content extend behind the floating composer, which is what makes its glass background
-    /// actually show blurred content through it instead of just looking like a solid fill.
-    /// `safeAreaBar`'s automatic scroll-edge effect doesn't reach into `UIList`'s
-    /// `UIViewRepresentable`-wrapped table view, so it isn't relied on here — instead the table
-    /// gets a modest content inset (sized for the compact composer) so the newest message still
-    /// clears it at rest, while remaining free to scroll behind it.
+    /// `safeAreaInset` supplies the composer height and the current keyboard safe area to the
+    /// UIKit-backed list. The inverted list needs only a small, static breathing gap of its own;
+    /// calculating a keyboard-height-dependent inset here would desynchronise it from SwiftUI's
+    /// interactive keyboard animation.
     private var effectiveChatParams: ChatCustomizationParameters {
         guard shouldFloatInputView else { return chatCustomizationParameters }
         var params = chatCustomizationParameters
-        // Measured, not fixed. The composer switches to a taller two-row layout once the draft
-        // wraps (see `ComposerLayout`) and keeps growing with it, so a constant sized for the
-        // compact state leaves the newest messages sitting behind it.
         let floatingComposerInset = FloatingComposerLayout.messageInset(
-            composerHeight: floatingComposerHeight,
-            staticBottomInset: UIApplication.safeArea.bottom,
+            existingInset: params.contentInsets.top,
             gap: floatingComposerGap
         )
         // NOTE: top and bottom are vice versa here — the conversation table is upside down.
-        params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
+        params.contentInsets.top = floatingComposerInset
         return params
     }
 
@@ -674,25 +653,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 /// Breathing room between the newest message and the floating composer.
 let floatingComposerGap: CGFloat = 8
 
-/// Keeps the inverted conversation table clear of the floating composer without coupling its
-/// inset to the keyboard. `UIApplication.safeArea` is the window's static container inset; the
-/// composer itself follows the keyboard through SwiftUI's normal safe-area behaviour.
+/// Keeps a small gap between the inverted conversation table and its safe-area-inset composer.
+/// The safe-area inset itself owns the composer's dynamic height and keyboard movement.
 enum FloatingComposerLayout {
     static func messageInset(
-        composerHeight: CGFloat,
-        staticBottomInset: CGFloat,
+        existingInset: CGFloat,
         gap: CGFloat = floatingComposerGap
     ) -> CGFloat {
-        max(0, composerHeight) + max(0, staticBottomInset) + max(0, gap)
-    }
-}
-
-/// Reports the floating composer's rendered height up to `ChatView`, so the message list can
-/// inset by however tall it currently is rather than a constant.
-private struct FloatingComposerHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+        max(max(0, existingInset), max(0, gap))
     }
 }

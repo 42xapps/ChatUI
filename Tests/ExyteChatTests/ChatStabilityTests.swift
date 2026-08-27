@@ -6,14 +6,19 @@ import Testing
 struct ChatStabilityTests {
     private let sender = User(id: "sender", name: "Sender", avatarURL: nil, isCurrentUser: true)
 
-    @Test("Floating composer inset only includes static safe area")
-    func floatingComposerInsetUsesStaticContainerInset() {
+    @Test("Floating composer inset leaves keyboard ownership to the safe area")
+    func floatingComposerInsetUsesOnlyStaticBreathingRoom() {
         #expect(
             FloatingComposerLayout.messageInset(
-                composerHeight: 64,
-                staticBottomInset: 34,
+                existingInset: 0,
                 gap: 8
-            ) == 106
+            ) == 8
+        )
+        #expect(
+            FloatingComposerLayout.messageInset(
+                existingInset: 24,
+                gap: 8
+            ) == 24
         )
     }
 
