@@ -6,38 +6,6 @@ import Testing
 struct ChatStabilityTests {
     private let sender = User(id: "sender", name: "Sender", avatarURL: nil, isCurrentUser: true)
 
-    @Test("Floating composer inset leaves keyboard ownership to the safe area")
-    func floatingComposerInsetUsesOnlyStaticBreathingRoom() {
-        #expect(
-            FloatingComposerLayout.messageInset(
-                existingInset: 0,
-                gap: 8
-            ) == 8
-        )
-        #expect(
-            FloatingComposerLayout.messageInset(
-                existingInset: 24,
-                gap: 8
-            ) == 24
-        )
-    }
-
-    @Test("Keyboard overlap is scoped to the embedded chat container")
-    func keyboardOverlapUsesOnlyIntersectingHeight() {
-        #expect(
-            KeyboardLayout.overlap(
-                container: CGRect(x: 0, y: 44, width: 390, height: 800),
-                keyboard: CGRect(x: 0, y: 600, width: 390, height: 300)
-            ) == 244
-        )
-        #expect(
-            KeyboardLayout.overlap(
-                container: CGRect(x: 0, y: 44, width: 390, height: 500),
-                keyboard: CGRect(x: 0, y: 600, width: 390, height: 300)
-            ) == 0
-        )
-    }
-
     @Test("Message projection is rebuilt only when its input changes")
     @MainActor
     func messageProjectionCachesUnchangedInput() {

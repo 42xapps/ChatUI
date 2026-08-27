@@ -98,23 +98,16 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
     @State private var isShowingMenu = false
 
+    /// Measured height of the floating composer, including the bottom safe area it sits above.
+    /// Drives the message list's content inset so messages clear the composer as it grows.
+    @State private var floatingComposerHeight: CGFloat = 0
+
     @State private var giphyConfigured = false
     @State private var selectedGiphyMedia: GPHMedia? = nil
 
     public var body: some View {
-        GeometryReader { proxy in
-            mainView(keyboardOverlap: KeyboardLayout.overlap(
-                container: proxy.frame(in: .global),
-                keyboard: keyboardState.keyboardFrame
-            ))
-        }
-            // The composer reserves the lower safe area. Extend the chat background through
-            // that reservation so a host's outer background cannot appear as a separate dark
-            // strip beneath the composer.
-            .background {
-                chatBackground()
-                    .ignoresSafeArea(.container, edges: .bottom)
-            }
+        mainView
+            .background(chatBackground())
             // Blur parent when fullscreen media sheet is shown
             .blur(radius: viewModel.fullscreenAttachmentPresented ? 12 : 0)
             .animation(.easeInOut(duration: 0.35), value: viewModel.fullscreenAttachmentPresented)
@@ -221,7 +214,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
     }
 
-    func mainView(keyboardOverlap: CGFloat) -> some View {
+    var mainView: some View {
         VStack(spacing: 0) {
             if chatCustomizationParameters.showNetworkConnectionProblem, !networkMonitor.isConnected
             {
@@ -229,23 +222,22 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
 
             if shouldFloatInputView {
-                listWithButton
-                    // The transcript can extend through the static top container area, but it
-                    // must remain in the keyboard-respecting layout region. A bottom
-                    // `safeAreaInset` participates in the system keyboard animation and gives
-                    // the UIKit-backed list a matching safe area, so the composer and newest
-                    // message stay together during focus changes and multiline expansion.
-                    .ignoresSafeArea(.container, edges: .top)
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        inputView
-                            // The host can opt out of SwiftUI's keyboard-safe-area resizing
-                            // (for example, a full-screen transformed drawer). The explicit
-                            // overlap keeps the composer attached to the system keyboard in
-                            // that case. This padding is part of the inset, so UIList receives
-                            // the identical reservation and its newest cell cannot sit beneath
-                            // the composer.
-                            .padding(.bottom, keyboardOverlap)
-                    }
+                ZStack(alignment: .bottom) {
+                    listWithButton
+                        .ignoresSafeArea(edges: [.top, .bottom])
+                    inputView
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(
+                                    key: FloatingComposerHeightKey.self,
+                                    value: proxy.size.height + proxy.safeAreaInsets.bottom
+                                )
+                            }
+                        )
+                }
+                .onPreferenceChange(FloatingComposerHeightKey.self) { height in
+                    floatingComposerHeight = height
+                }
             } else if chatCustomizationParameters.isListAboveInputView {
                 listWithButton
                 if let builder = betweenListAndInputViewBuilder {
@@ -261,10 +253,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         }
         // Used to prevent ChatView movement during Emoji Keyboard invocation
-        // Own floating-composer keyboard avoidance explicitly. This prevents an ancestor that
-        // ignores the keyboard safe area from making the transcript and composer disagree about
-        // their available height. Other ChatView configurations retain the system default.
-        .ignoresSafeArea(shouldFloatInputView || isShowingMenu ? .keyboard : [])
+        .ignoresSafeArea(isShowingMenu ? .keyboard : [])
     }
 
     /// The floating glass composer (see `InputView`) is designed to sit on top of the message
@@ -277,19 +266,22 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             && betweenListAndInputViewBuilder == nil
     }
 
-    /// `safeAreaInset` supplies the composer height and the current keyboard safe area to the
-    /// UIKit-backed list. The inverted list needs only a small, static breathing gap of its own;
-    /// calculating a keyboard-height-dependent inset here would desynchronise it from SwiftUI's
-    /// interactive keyboard animation.
+    /// A true `ZStack` overlay (not `safeAreaInset`/`safeAreaBar`) lets the message list's own
+    /// content extend behind the floating composer, which is what makes its glass background
+    /// actually show blurred content through it instead of just looking like a solid fill.
+    /// `safeAreaBar`'s automatic scroll-edge effect doesn't reach into `UIList`'s
+    /// `UIViewRepresentable`-wrapped table view, so it isn't relied on here — instead the table
+    /// gets a modest content inset (sized for the compact composer) so the newest message still
+    /// clears it at rest, while remaining free to scroll behind it.
     private var effectiveChatParams: ChatCustomizationParameters {
         guard shouldFloatInputView else { return chatCustomizationParameters }
         var params = chatCustomizationParameters
-        let floatingComposerInset = FloatingComposerLayout.messageInset(
-            existingInset: params.contentInsets.top,
-            gap: floatingComposerGap
-        )
+        // Measured, not fixed. The composer switches to a taller two-row layout once the draft
+        // wraps (see `ComposerLayout`) and keeps growing with it, so a constant sized for the
+        // compact state leaves the newest messages sitting behind it.
+        let floatingComposerInset = floatingComposerHeight + floatingComposerGap
         // NOTE: top and bottom are vice versa here — the conversation table is upside down.
-        params.contentInsets.top = floatingComposerInset
+        params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
         return params
     }
 
@@ -672,25 +664,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 //}
 
 /// Breathing room between the newest message and the floating composer.
-let floatingComposerGap: CGFloat = 8
+private let floatingComposerGap: CGFloat = 8
 
-/// Keeps a small gap between the inverted conversation table and its safe-area-inset composer.
-/// The safe-area inset itself owns the composer's dynamic height and keyboard movement.
-enum FloatingComposerLayout {
-    static func messageInset(
-        existingInset: CGFloat,
-        gap: CGFloat = floatingComposerGap
-    ) -> CGFloat {
-        max(max(0, existingInset), max(0, gap))
-    }
-}
+/// Reports the floating composer's rendered height up to `ChatView`, so the message list can
+/// inset by however tall it currently is rather than a constant.
+private struct FloatingComposerHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
 
-/// Keyboard notifications are expressed in screen coordinates while `ChatView` can be embedded
-/// in a transformed container. Intersecting the two frames gives the exact bottom padding that
-/// keeps the composer directly above the keyboard without relying on any ancestor's safe area.
-enum KeyboardLayout {
-    static func overlap(container: CGRect, keyboard: CGRect) -> CGFloat {
-        guard !keyboard.isEmpty, container.intersects(keyboard) else { return 0 }
-        return max(0, min(container.maxY, keyboard.maxY) - max(container.minY, keyboard.minY))
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
