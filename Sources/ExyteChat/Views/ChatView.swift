@@ -97,8 +97,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     /// Used to prevent the MainView from responding to keyboard changes while the Menu is active
     @State private var isShowingMenu = false
 
-    /// Measured height of the floating composer, including the bottom safe area it sits above.
-    /// Drives the message list's content inset so messages clear the composer as it grows.
+    /// Measured height of the floating composer itself. The table's adjusted inset handles system
+    /// safe areas separately, so including them here would double-count the keyboard.
     @State private var floatingComposerHeight: CGFloat = 0
 
     @State private var giphyConfigured = false
@@ -220,13 +220,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             if shouldFloatInputView {
                 ZStack(alignment: .bottom) {
                     listWithButton
-                        .ignoresSafeArea(edges: [.top, .bottom])
                     inputView
                         .background(
                             GeometryReader { proxy in
                                 Color.clear.preference(
                                     key: FloatingComposerHeightKey.self,
-                                    value: proxy.size.height + proxy.safeAreaInsets.bottom
+                                    value: proxy.size.height
                                 )
                             }
                         )
@@ -260,6 +259,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         type == .conversation
             && chatCustomizationParameters.isListAboveInputView
             && betweenListAndInputViewBuilder == nil
+    }
+
+    private var scrollToBottomButtonBottomPadding: CGFloat {
+        shouldFloatInputView
+            ? floatingComposerHeight + floatingComposerGap
+            : 8
     }
 
     /// A true `ZStack` overlay (not `safeAreaInset`/`safeAreaBar`) lets the message list's own
@@ -304,21 +309,32 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     var listWithButton: some View {
         switch type {
         case .conversation:
-            ZStack(alignment: .bottomTrailing) {
+            ZStack(alignment: .bottom) {
                 list
+                    .applyIf(shouldFloatInputView) {
+                        $0.ignoresSafeArea(.container, edges: [.top, .bottom])
+                    }
 
                 if chatCustomizationParameters.showScrollToBottomButton, !isScrolledToBottom {
                     Button {
-                        self.pendingScrollTo = ScrollToParams(.newestMessage)  // Cannot assign to property: 'self' is immutable
+                        pendingScrollTo = ScrollToParams(.newestMessage)
                     } label: {
-                        theme.images.scrollToBottom
-                            .frame(width: 40, height: 40)
-                            .circleBackground(theme.colors.messageFriendBG)
-                            .foregroundStyle(theme.colors.sendButtonBackground)
+                        Image(systemName: "arrow.down")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(
+                                width: InputView.controlChipSize,
+                                height: InputView.controlChipSize
+                            )
+                            .background(
+                                Circle().fill(theme.colors.recordButtonBackground)
+                            )
                             .shadow(color: .primary.opacity(0.1), radius: 2, y: 1)
+                            .frame(width: 44, height: 44)
                     }
-                    .padding(.trailing, MessageView.horizontalScreenEdgePadding)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, scrollToBottomButtonBottomPadding)
+                    .accessibilityLabel("Scroll to latest messages")
+                    .accessibilityIdentifier("chat-scroll-to-latest")
                 }
             }
 

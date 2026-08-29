@@ -90,7 +90,27 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         }
 
         if tableView.contentInset != chatParams.contentInsets {
+            let previousMetrics = tableView.verticalScrollMetrics
+            let shouldMaintainNewestEdge =
+                type == .conversation
+                && (
+                    isScrolledToBottom
+                    || previousMetrics.isAtMinimum(tableView.contentOffset.y)
+                )
+
             tableView.contentInset = chatParams.contentInsets
+            tableView.layoutIfNeeded()
+
+            if shouldMaintainNewestEdge {
+                let minimumOffset = tableView.verticalScrollMetrics.minimumOffset
+                if abs(tableView.contentOffset.y - minimumOffset)
+                    > ScrollMetrics.edgeTolerance {
+                    tableView.setContentOffset(
+                        CGPoint(x: 0, y: minimumOffset),
+                        animated: false
+                    )
+                }
+            }
         }
 
         context.coordinator.chatParams = chatParams
@@ -114,7 +134,10 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                         || context.coordinator.sections.isEmpty
                         || pendingScrollTo != nil { // if we're gonna scroll later, then update cells without animation, and animate scrolling later
                         updateTableNoAnimation(tableView, context.coordinator)
-                    } else if animationMode == .natural, tableView.contentOffset == .zero {
+                    } else if animationMode == .natural,
+                              tableView.verticalScrollMetrics.isAtMinimum(
+                                tableView.contentOffset.y
+                              ) {
                         await updateTableWithAnimation(tableView, context.coordinator)
                     } else {
                         // if transaction.animationMode == .keepStable
@@ -130,7 +153,10 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
                         performScrollTo(tableView, scrollToParams: scrollToParams)
                     }
 
-                    if animationMode == .natural, tableView.contentOffset == .zero {
+                    if animationMode == .natural,
+                       tableView.verticalScrollMetrics.isAtMinimum(
+                        tableView.contentOffset.y
+                       ) {
                         await withCheckedContinuation { continuation in
                             UIView.animate(withDuration: 0.25) {
                                 perform()
@@ -145,8 +171,6 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
 
                 tableView.beginUpdates()
                 context.coordinator.updateInProgress = false
-                context.coordinator.paginationState.olderInProgress = false
-                context.coordinator.paginationState.newerInProgress = false
                 tableView.endUpdates()
                 tableView.relayoutHeadersFooters()
             }
@@ -163,20 +187,27 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             tableView.setContentOffset(CGPoint(x: 0, y: offset), animated: false)
         case .newestMessage:
             tableView.setContentOffset(
-                CGPoint(x: 0, y: -tableView.adjustedContentInset.top),
+                CGPoint(x: 0, y: tableView.verticalScrollMetrics.minimumOffset),
                 animated: false
             )
         case .oldestMessage:
-            let lastSection = max(tableView.numberOfSections - 1, 0)
-            let lastRow = max(tableView.numberOfRows(inSection: lastSection) - 1, 0)
+            guard tableView.numberOfSections > 0 else { return }
 
-            guard lastRow >= 0 else { return }
+            for section in stride(
+                from: tableView.numberOfSections - 1,
+                through: 0,
+                by: -1
+            ) {
+                let rowCount = tableView.numberOfRows(inSection: section)
+                guard rowCount > 0 else { continue }
 
-            tableView.scrollToRow(
-                at: IndexPath(row: lastRow, section: lastSection),
-                at: .bottom,
-                animated: false
-            )
+                tableView.scrollToRow(
+                    at: IndexPath(row: rowCount - 1, section: section),
+                    at: .bottom,
+                    animated: false
+                )
+                return
+            }
         }
     }
 
@@ -189,22 +220,19 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         (position == .middle || type == .comments) ? position
         : position == .bottom ? .top: .bottom
 
+        let metrics = tableView.verticalScrollMetrics
         let baseY: CGFloat
         switch adjustedPosition {
         case .top:
             baseY = rect.minY - tableView.adjustedContentInset.top
         case .middle:
-            baseY = rect.midY - tableView.bounds.height / 2
+            baseY = metrics.centeredOffset(forItemMidY: rect.midY)
         default:
             baseY = rect.maxY - tableView.bounds.height + tableView.adjustedContentInset.bottom
         }
 
         let targetY = baseY + additionalOffset
-
-        let minOffset = -tableView.adjustedContentInset.top
-        let maxOffset = tableView.contentSize.height - tableView.bounds.height + tableView.adjustedContentInset.bottom
-
-        let clampedY = max(minOffset, min(targetY, maxOffset))
+        let clampedY = metrics.clamped(targetY)
 
         tableView.setContentOffset(CGPoint(x: 0, y: clampedY), animated: false)
     }
@@ -464,19 +492,20 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         let type: ChatType
         var sections: [MessagesSection] {
             didSet {
-                if let id = sections.last?.rows.last?.message.id {
-                    olderPaginationTargetMessageID = id
-                }
-                if let id = sections.first?.rows.first?.message.id {
-                    newerPaginationTargetMessageID = id
-                }
+                olderPaginationTriggerArmed = true
+                newerPaginationTriggerArmed = true
+                updatePaginationTargetMessageIDs()
             }
         }
         let ids: [String]
 
         // MARK: - Customization
 
-        var chatParams: ChatCustomizationParameters
+        var chatParams: ChatCustomizationParameters {
+            didSet {
+                updatePaginationTargetMessageIDs()
+            }
+        }
         let messageParams: MessageCustomizationParameters
         let mainBackgroundColor: Color
 
@@ -486,6 +515,8 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         var olderPaginationTargetMessageID: String?
         var newerPaginationTargetMessageID: String?
         let paginationState = PaginationState()
+        private var olderPaginationTriggerArmed = true
+        private var newerPaginationTriggerArmed = true
 
         // helpers to avoid queueing same updates multiple times
         var latestUpdateSections: [MessagesSection] = []
@@ -526,6 +557,58 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             self.chatParams = chatParams
             self.messageParams = messageParams
             self.mainBackgroundColor = mainBackgroundColor
+
+            super.init()
+            updatePaginationTargetMessageIDs()
+        }
+
+        private func updatePaginationTargetMessageIDs() {
+            let olderTarget = cellIndexOffset(
+                from: chatParams.olderMessagesPaginationHandler
+            ).flatMap(messageIDFromOldest(offset:))
+            let newerTarget = cellIndexOffset(
+                from: chatParams.newerMessagesPaginationHandler
+            ).flatMap(messageIDFromNewest(offset:))
+
+            if olderPaginationTargetMessageID != olderTarget {
+                olderPaginationTriggerArmed = true
+                olderPaginationTargetMessageID = olderTarget
+            }
+            if newerPaginationTargetMessageID != newerTarget {
+                newerPaginationTriggerArmed = true
+                newerPaginationTargetMessageID = newerTarget
+            }
+        }
+
+        private func cellIndexOffset(from handler: PaginationHandler?) -> Int? {
+            guard let handler else { return nil }
+            guard case .cellIndex(let offset) = handler.triggerType else {
+                return nil
+            }
+            return max(0, offset)
+        }
+
+        private func messageIDFromNewest(offset: Int) -> String? {
+            var remainingOffset = offset
+            for section in sections {
+                if remainingOffset < section.rows.count {
+                    return section.rows[remainingOffset].message.id
+                }
+                remainingOffset -= section.rows.count
+            }
+            return nil
+        }
+
+        private func messageIDFromOldest(offset: Int) -> String? {
+            var remainingOffset = offset
+            for section in sections.reversed() {
+                if remainingOffset < section.rows.count {
+                    let row = section.rows.count - 1 - remainingOffset
+                    return section.rows[row].message.id
+                }
+                remainingOffset -= section.rows.count
+            }
+            return nil
         }
 
         func numberOfSections(in tableView: UITableView) -> Int {
@@ -669,20 +752,24 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
             }
 
             if !paginationState.olderInProgress,
+               olderPaginationTriggerArmed,
                let messageID = olderPaginationTargetMessageID,
                message.id == messageID,
                let handler = chatParams.olderMessagesPaginationHandler,
                handler.hasMoreToLoad,
                case .cellIndex(_) = handler.triggerType {
+                olderPaginationTriggerArmed = false
                 performOlderPagination(tableView)
             }
 
             if !paginationState.newerInProgress,
+               newerPaginationTriggerArmed,
                let messageID = newerPaginationTargetMessageID,
                message.id == messageID,
                let handler = chatParams.newerMessagesPaginationHandler,
                handler.hasMoreToLoad,
                case .cellIndex(_) = handler.triggerType {
+                newerPaginationTriggerArmed = false
                 performNewerPagination(tableView)
             }
         }
@@ -720,57 +807,134 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
 
         func scrollViewDidScroll(_ scrollView: UIScrollView) {
             let contentOffset = scrollView.contentOffset.y
-            let maxTopOffset = scrollView.contentSize.height - scrollView.frame.height - 1
+            let metrics = scrollView.verticalScrollMetrics
 
             chatParams.onContentOffsetChange?(contentOffset)
-            isScrolledToBottom = contentOffset <= 0
-            isScrolledToTop = contentOffset >= maxTopOffset
+            isScrolledToBottom = metrics.isAtMinimum(contentOffset)
+            isScrolledToTop = metrics.isAtMaximum(contentOffset)
 
-            guard !sections.isEmpty, !updateInProgress else { return }
+            guard !sections.isEmpty,
+                  !updateInProgress,
+                  let tableView = scrollView as? UITableView else { return }
+
+            updatePaginationTriggerArming(
+                tableView,
+                contentOffset: contentOffset,
+                metrics: metrics
+            )
 
             if !paginationState.olderInProgress,
+               olderPaginationTriggerArmed,
                let handler = chatParams.olderMessagesPaginationHandler,
                handler.hasMoreToLoad,
-               case let .pixels(offset) = handler.triggerType,
-               contentOffset >= maxTopOffset,
-               let tableView = scrollView as? UITableView {
+               case let .pixels(distance) = handler.triggerType,
+               metrics.isWithinMaximumEdge(contentOffset, distance: distance) {
+                olderPaginationTriggerArmed = false
                 performOlderPagination(tableView)
             }
 
-            //print(contentOffset, sections.count)
-
             if !paginationState.newerInProgress,
+               newerPaginationTriggerArmed,
                let handler = chatParams.newerMessagesPaginationHandler,
                handler.hasMoreToLoad,
-               case let .pixels(offset) = handler.triggerType,
-               contentOffset <= offset,
-               let tableView = scrollView as? UITableView {
+               case let .pixels(distance) = handler.triggerType,
+               metrics.isWithinMinimumEdge(contentOffset, distance: distance) {
+                newerPaginationTriggerArmed = false
                 performNewerPagination(tableView)
             }
         }
 
-        func performOlderPagination(_ tableView: UITableView) {
+        private func updatePaginationTriggerArming(
+            _ tableView: UITableView,
+            contentOffset: CGFloat,
+            metrics: ScrollMetrics
+        ) {
+            let visibleMessageIDs: Set<String> = Set(
+                (tableView.indexPathsForVisibleRows ?? []).compactMap { indexPath in
+                    guard sections.indices.contains(indexPath.section),
+                          sections[indexPath.section].rows.indices.contains(indexPath.row)
+                    else {
+                        return nil
+                    }
+                    return sections[indexPath.section].rows[indexPath.row].message.id
+                }
+            )
+
             if let handler = chatParams.olderMessagesPaginationHandler {
-                Task { @MainActor in
-                    tableView.beginUpdates()
-                    paginationState.olderInProgress = true
-                    tableView.endUpdates()
-                    tableView.relayoutHeadersFooters()
-                    await handler.handleClosure()
-                    // set olderInProgress to false after table update is complete
+                switch handler.triggerType {
+                case .cellIndex:
+                    if let target = olderPaginationTargetMessageID,
+                       !visibleMessageIDs.contains(target) {
+                        olderPaginationTriggerArmed = true
+                    }
+                case .pixels(let distance):
+                    if !metrics.isWithinMaximumEdge(
+                        contentOffset,
+                        distance: distance
+                    ) {
+                        olderPaginationTriggerArmed = true
+                    }
+                }
+            } else {
+                olderPaginationTriggerArmed = true
+            }
+
+            if let handler = chatParams.newerMessagesPaginationHandler {
+                switch handler.triggerType {
+                case .cellIndex:
+                    if let target = newerPaginationTargetMessageID,
+                       !visibleMessageIDs.contains(target) {
+                        newerPaginationTriggerArmed = true
+                    }
+                case .pixels(let distance):
+                    if !metrics.isWithinMinimumEdge(
+                        contentOffset,
+                        distance: distance
+                    ) {
+                        newerPaginationTriggerArmed = true
+                    }
+                }
+            } else {
+                newerPaginationTriggerArmed = true
+            }
+        }
+
+        func performOlderPagination(_ tableView: UITableView) {
+            guard let handler = chatParams.olderMessagesPaginationHandler,
+                  !paginationState.olderInProgress else { return }
+
+            olderPaginationTriggerArmed = false
+            paginationState.olderInProgress = true
+            tableView.relayoutHeadersFooters()
+
+            Task { @MainActor in
+                await handler.handleClosure()
+
+                if paginationState.olderInProgress {
+                    paginationState.olderInProgress = false
+                    if !updateInProgress {
+                        tableView.relayoutHeadersFooters()
+                    }
                 }
             }
         }
 
         func performNewerPagination(_ tableView: UITableView) {
-            if let handler = chatParams.newerMessagesPaginationHandler {
-                paginationState.newerInProgress = true
-                Task { @MainActor in
-                    tableView.beginUpdates()
-                    tableView.endUpdates()
-                    tableView.relayoutHeadersFooters()
-                    await handler.handleClosure()
-                    // set newerInProgress to false after table update is complete
+            guard let handler = chatParams.newerMessagesPaginationHandler,
+                  !paginationState.newerInProgress else { return }
+
+            newerPaginationTriggerArmed = false
+            paginationState.newerInProgress = true
+            tableView.relayoutHeadersFooters()
+
+            Task { @MainActor in
+                await handler.handleClosure()
+
+                if paginationState.newerInProgress {
+                    paginationState.newerInProgress = false
+                    if !updateInProgress {
+                        tableView.relayoutHeadersFooters()
+                    }
                 }
             }
         }
@@ -793,5 +957,16 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         }
         res += String("}")
         return res
+    }
+}
+
+private extension UIScrollView {
+    var verticalScrollMetrics: ScrollMetrics {
+        ScrollMetrics(
+            contentHeight: contentSize.height,
+            viewportHeight: bounds.height,
+            adjustedTopInset: adjustedContentInset.top,
+            adjustedBottomInset: adjustedContentInset.bottom
+        )
     }
 }
