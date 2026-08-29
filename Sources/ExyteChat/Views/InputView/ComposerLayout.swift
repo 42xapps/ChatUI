@@ -13,6 +13,14 @@ struct ComposerLayout: Layout {
     var isExpanded: Bool
     var spacing: CGFloat = 8
 
+    /// Height to give the text field in a row `width` points wide.
+    ///
+    /// Asking the field is not an option: `TextField(axis: .vertical)` answers with the height for
+    /// the width it was *last laid out at*, recomputing only when its text changes. The two modes
+    /// hand it very different widths, so it reports the other mode's wrapping until the next
+    /// keystroke — a blank line of slack in the card — even though the text re-wraps correctly.
+    var textHeight: (CGFloat) -> CGFloat
+
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         guard subviews.count == 3 else { return .zero }
         let width = proposal.width ?? 0
@@ -20,13 +28,11 @@ struct ComposerLayout: Layout {
         let trailing = subviews[2].sizeThatFits(.unspecified)
 
         if isExpanded {
-            let text = subviews[1].sizeThatFits(ProposedViewSize(width: width, height: nil))
             let controlsRowHeight = max(leading.height, trailing.height)
-            return CGSize(width: width, height: text.height + spacing + controlsRowHeight)
+            return CGSize(width: width, height: textHeight(width) + spacing + controlsRowHeight)
         } else {
             let textWidth = max(0, width - leading.width - trailing.width - spacing * 2)
-            let text = subviews[1].sizeThatFits(ProposedViewSize(width: textWidth, height: nil))
-            let height = max(leading.height, text.height, trailing.height)
+            let height = max(leading.height, textHeight(textWidth), trailing.height)
             return CGSize(width: width, height: height)
         }
     }
@@ -37,14 +43,14 @@ struct ComposerLayout: Layout {
         let trailing = subviews[2].sizeThatFits(.unspecified)
 
         if isExpanded {
-            let text = subviews[1].sizeThatFits(ProposedViewSize(width: bounds.width, height: nil))
+            let textRowHeight = textHeight(bounds.width)
             subviews[1].place(
                 at: CGPoint(x: bounds.minX, y: bounds.minY),
                 anchor: .topLeading,
-                proposal: ProposedViewSize(width: bounds.width, height: text.height)
+                proposal: ProposedViewSize(width: bounds.width, height: textRowHeight)
             )
 
-            let rowY = bounds.minY + text.height + spacing
+            let rowY = bounds.minY + textRowHeight + spacing
             let controlsRowHeight = max(leading.height, trailing.height)
             let rowCenterY = rowY + controlsRowHeight / 2
             subviews[0].place(at: CGPoint(x: bounds.minX, y: rowCenterY), anchor: .leading, proposal: .unspecified)
@@ -57,7 +63,7 @@ struct ComposerLayout: Layout {
             subviews[1].place(
                 at: CGPoint(x: bounds.minX + leading.width + spacing, y: midY),
                 anchor: .leading,
-                proposal: ProposedViewSize(width: textWidth, height: nil)
+                proposal: ProposedViewSize(width: textWidth, height: textHeight(textWidth))
             )
             subviews[2].place(at: CGPoint(x: bounds.maxX, y: midY), anchor: .trailing, proposal: .unspecified)
         }

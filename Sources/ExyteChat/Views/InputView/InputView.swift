@@ -82,7 +82,6 @@ struct InputView: View {
     @Environment(\.mediaPickerTheme) private var pickerTheme
 
     @EnvironmentObject private var keyboardState: KeyboardState
-    @EnvironmentObject private var globalFocusState: GlobalFocusState
 
     @ObservedObject var viewModel: InputViewModel
     var inputFieldId: UUID
@@ -101,19 +100,18 @@ struct InputView: View {
         viewModel.state
     }
 
-    private var isFocused: Bool {
-        globalFocusState.focus == .uuid(inputFieldId)
-    }
-
     private var isRecordingState: Bool {
         [.isRecordingHold, .isRecordingTap, .hasRecording, .playingRecording, .pausedRecording]
             .contains(state)
     }
 
     /// Drives the compact (pill, inline controls) ↔ expanded (card, controls below text) morph.
+    /// The card is earned by the text outgrowing the compact row's single line rather than by
+    /// focus, so tapping in stays compact and sending — which clears the text — collapses it.
     /// Recording has its own dedicated layout and never expands this way.
     private var isExpanded: Bool {
-        style == .message && !isRecordingState && isFocused
+        guard style == .message, !isRecordingState else { return false }
+        return TextInputView.wrapsToMultipleLines(viewModel.text, rowWidth: compactRowWidth)
     }
 
     /// The compact row is short enough that 26 reads as a full pill, while the taller expanded
@@ -147,6 +145,11 @@ struct InputView: View {
     private var triggerInset: CGFloat { composerContentPadding - 2 }
 
     @State private var showAttachMenu = false
+
+    /// Width of the text row while compact, which is the width wrapping is judged against. The
+    /// expanded card hands the row the whole card, so judging it there would find the text fitting
+    /// again and collapse the composer right back under itself.
+    @State private var compactRowWidth: CGFloat = 0
 
     @State private var overlaySize: CGSize = .zero
 
@@ -233,7 +236,7 @@ struct InputView: View {
 
     /// `.signature` style and recording keep the original single-row layout (re-skinned with
     /// the new glass background); the normal `.message` compose flow morphs between compact
-    /// and expanded via `ComposerLayout`, driven purely by focus.
+    /// and expanded via `ComposerLayout`, driven by whether the text still fits one line.
     private func composerCard(_ picker: RecentPhotoPickerContext?) -> some View {
         Group {
             if !usesComposerLayout {
@@ -251,15 +254,25 @@ struct InputView: View {
                         )
                     }
 
-                    ComposerLayout(isExpanded: isExpanded, spacing: isExpanded ? 12 : 4) {
+                    ComposerLayout(
+                        isExpanded: isExpanded,
+                        spacing: isExpanded ? 12 : 4,
+                        textHeight: { rowWidth in
+                            TextInputView.messageRowHeight(
+                                for: viewModel.text, rowWidth: rowWidth
+                            )
+                        }
+                    ) {
                         attachSlot(picker)
                         TextInputView(
                             text: $viewModel.text,
                             inputFieldId: inputFieldId,
                             style: style,
                             availableInputs: availableInputs,
-                            localization: localization
+                            localization: localization,
+                            isExpanded: isExpanded
                         )
+                        .background(compactRowWidthReader)
                         trailingSlot
                     }
                 }
@@ -285,6 +298,17 @@ struct InputView: View {
                 .strokeBorder(theme.colors.mainText.opacity(0.12), lineWidth: 1)
         }
         .animation(.smooth(duration: 0.3), value: isExpanded)
+    }
+
+    /// Records the text row's width, ignoring the expanded card's — see `compactRowWidth`.
+    private var compactRowWidthReader: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onChange(of: proxy.size.width, initial: true) { _, width in
+                    guard !isExpanded, width > 0 else { return }
+                    compactRowWidth = width
+                }
+        }
     }
 
     private var legacyComposerRow: some View {

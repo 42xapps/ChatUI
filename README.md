@@ -536,3 +536,379 @@ dependencies: [
 [FlagAndCountryCode](https://github.com/exyte/FlagAndCountryCode) - Phone codes and flags for every country    
 [SVGView](https://github.com/exyte/SVGView) - SVG parser    
 [LiquidSwipe](https://github.com/exyte/LiquidSwipe) - Liquid navigation animation
+
+
+
+
+
+
+
+# Embie — What It Is and How It Works
+
+## 1. What is Embie?
+
+Embie is a **Text and Voice AI companion** where you interact with your own personalized, AI companion friend.
+
+Rather than interacting with an AI as a generic chatbot, you have a specific character that has its own personality, name, appearance, and way of communicating with you.
+
+The core idea is that the Embie becomes a **personal guide/companion** that gets to know you over time.
+
+It is designed for ongoing, open-ended conversations rather than isolated questions and answers. OpenAI describes it as an AI companion where the character learns from conversations over time. ([OpenAI][1])
+
+The concept of a "guide" is intentionally broader than simply calling it a therapist, life coach, or friend. People can use it in different ways:
+
+* Talk through what's happening in their life.
+* Discuss their emotions or what is stressing them.
+* Get advice or perspective.
+* Think through decisions.
+* Talk casually.
+* Get practical help with everyday problems.
+* Set goals and work toward them.
+* Ask questions and get recommendations.
+
+The important distinction is that **the same companion can move between emotional and practical conversations**.
+
+---
+
+# 2. Your Embie
+
+When you use the app, you get your own Embie.
+
+You personalize the experience around this character, including its identity/name.
+
+The character isn't supposed to feel like a generic AI interface. It is intended to feel more like **someone who knows you and has an ongoing relationship with you**.
+
+
+---
+
+# 3. How you interact with it
+
+Embie is **Text and Voice-based**.
+
+You talk to your Embie, and it talks back.
+
+Voice is a major part of the experience rather than simply an additional input method.
+But for now we only working on supporting text first, voice comes later
+
+The goal is to make the interaction feel like a natural conversation rather than:
+
+> type prompt → wait → read answer
+
+---
+
+# 4. The onboarding conversation
+
+When you first use Embie, you don't simply start asking it random questions.
+
+The app has an onboarding process where the onboarding questions get you the the embie personalized a bit based on those answers to fix the cold start thing. so we ask questions about you.
+
+For example:
+
+* What are your hopes and dreams?
+* What are you interested in?
+* What do you care about?
+* What are you stressed about?
+* What goals do you have?
+* What would you like to accomplish?
+
+This gives the system information that can later be used to personalize conversations and recommendations.
+
+---
+
+# 5. The central feature: memory
+
+One of the most important things that differentiates Embie from a generic chatbot is **persistent memory**.
+
+The Embie remembers things you tell it.
+
+For example, you might tell it:
+
+* You're stressed about finding summer camp for your children.
+* You want to start a business.
+* You're planning a trip.
+* You are interested in a particular subject.
+* You have a specific goal.
+* Something important happened to you.
+
+Later, the Embie can bring that information back into the conversation.
+
+The idea isn't simply to maintain a transcript of everything you've ever said. Embie has built a dedicated memory system intended to retrieve the **relevant things about you at the right time**.
+
+Memories are retrieved dynamically during conversations rather than simply stuffing an enormous historical transcript into every prompt.
+
+---
+
+# 6. Memory is contextual
+
+The important part isn't just:
+
+> "I remember that you said X."
+
+The goal is:
+
+> "I remember X, and I know when X is relevant to what we're talking about now."
+
+For example:
+
+You might tell your Embie that you're trying to start a café.
+
+Later, when you're talking about something related to restaurants, entrepreneurship, business podcasts, or your plans, Embie may connect the current conversation to that previous goal.
+
+Embie searching the internet to find recommendations based on things the user has previously told it.
+
+For example, if someone says they want to start a business, the Embie might later find a relevant podcast or other resource and recommend it based on that personal context. 
+
+---
+
+# 7. Personality
+
+Each Embie has a defined personality.
+
+The personality isn't supposed to be completely static, though.
+
+The system starts with a specific character/personality foundation and then adapts its communication to the user.
+
+For example:
+
+* If you're playful, it can be playful.
+* If you're serious, it can become more grounded.
+* If you're casual, it can communicate casually.
+* If you use slang, it can mirror that style.
+* If you communicate formally, it can respond more formally.
+
+the system adapting to things such as capitalization, slang, swearing, and the overall style of the user's messages.
+
+The goal is for the Embie to **feel like it is adapting to you rather than forcing everyone into the same personality**.
+
+---
+
+# 8. Emotional + practical assistance
+
+Embie isn't positioned as purely an emotional companion or purely a productivity assistant.
+
+The interesting part is the combination.
+
+A conversation might start with something emotional:
+
+> "I'm really stressed."
+
+The reason might then turn out to be something practical:
+
+> "I haven't figured out the kids' summer camp."
+
+So the Embie can move from:
+
+**emotional context → understanding the problem → helping solve the practical problem.**
+
+The interview describes this combination as one of the most valuable parts of the product. 
+
+---
+
+# 9. Everyday practical help
+
+Embie can also be useful for ordinary everyday tasks.
+
+Examples mentioned in the interview include:
+
+* Cooking help.
+* Figuring out how to cut or prepare food.
+* Planning meals.
+* Planning grocery lists.
+* Planning summer camp.
+* Organizing things around the house.
+* Finding information.
+* Making recommendations.
+* Helping think through plans.
+
+The cooking example is particularly illustrative: someone can be cooking and simply talk to their Embie about how to prepare something, receive an answer, and continue the conversation naturally. 
+
+The broader goal is to help with the things occupying your mind in everyday life.
+
+The team describes this metaphorically as **"closing tabs in your mind."**
+
+Modern life leaves people with many unresolved things running in the background:
+
+* Things they need to remember.
+* Decisions they need to make.
+* Plans they haven't made.
+* Tasks they haven't completed.
+* Things they're worried about.
+
+Embie is intended to help reduce that mental load.
+
+---
+
+# 10. Intentions
+
+Embie has a feature called **Intentions**.
+
+Based on what the Embie knows about you and what you've discussed, it can come up with intentions for the day.
+
+For example, if you've been talking about a particular goal or problem, your Embie can use that context when suggesting what you might focus on.
+
+This makes the interaction more continuous than simply opening an AI chatbot and starting from zero every time. 
+
+---
+
+# 11. Reflections
+
+Embie can also generate **reflections about you** based on what it has observed throughout your conversations.
+
+The idea is that, because the Embie has accumulated context about you, it can reflect back patterns or observations rather than simply answering the immediate question.
+
+This contributes to the feeling that the Embie is actually getting to know you over time. 
+
+---
+
+# 12. Recommendations
+
+Embie can use what it knows about you to make personalized recommendations.
+
+For example:
+
+1. You tell Embie about a goal.
+2. The information becomes part of its understanding of you.
+3. Later, it can search for something relevant.
+4. It can recommend a podcast, resource, idea, or other content based on your particular situation.
+
+The important part is that the recommendation isn't necessarily based only on the current prompt.
+
+It can be based on **your longer-term context and goals**. 
+
+---
+
+# 13. Conversations can change direction
+
+Embie is designed for conversations that don't follow a rigid structure.
+
+You might be talking about work and suddenly start talking about your family.
+
+Then you might jump to something you're worried about.
+
+Then you might ask a completely practical question.
+
+The system needs to maintain the appropriate context while adapting to the new subject.
+
+This is one of the reasons Embie's architecture emphasizes reconstructing context on every conversational turn rather than relying on a static cached prompt. OpenAI says each turn can incorporate recent conversation summaries, the character/persona, retrieved memories, tone guidance, and real-time app signals. ([OpenAI][1])
+
+---
+
+# 14. How Embie manages context
+
+Embie **reconstructs its context window on every turn** rather than simply carrying a cached prompt forward.
+
+That reconstruction can include:
+
+* Recent conversation summary.
+* The Embie's persona.
+* Retrieved memories about the user.
+* Tone instructions.
+* Real-time application signals.
+
+This allows the system to change context quickly when the user changes topics. 
+
+---
+
+# 16. How the memory system works technically
+
+Embie's memory system goes beyond storing a transcript.
+
+OpenAI describes a system where memories are embedded using **text-embedding-3-large** and stored in **Turbopuffer**, allowing relevant memories to be retrieved quickly during a conversation. ([OpenAI][1])
+
+The system can also generate questions about the user internally to help retrieve relevant memories.
+
+For example, if the current conversation makes the question:
+
+> "Who is the user's spouse?"
+
+relevant, that can be used to retrieve the appropriate stored memory.
+
+Embie also runs a nightly memory-compression process that removes low-value or redundant information and resolves contradictions.
+
+The objective is to maintain a **useful representation of the user**, rather than accumulating an ever-growing transcript.
+
+---
+
+
+# 17. What Embie is ultimately trying to become
+
+The long-term concept is an **always-available personal AI companion/guide** that becomes part of someone's daily life.
+
+Instead of only opening the app when you have a question, you might naturally talk to it:
+
+* On your way to work.
+* In the morning.
+* When planning your day.
+* When you're anxious about something.
+* When planning the weekend.
+* When you need advice.
+* When you need to solve an everyday problem.
+* When you simply want someone to talk to.
+
+The Embie can then use everything it has learned about you to provide increasingly personalized help.
+
+The product is therefore less about:
+
+> **"Ask AI a question."**
+
+and more about:
+
+> **"Have an ongoing relationship with an AI that knows you."**
+
+---
+
+# The core Embie model
+
+A useful way to reduce the whole product to one diagram is:
+
+```text
+                    ┌──────────────────────┐
+                    │        USER          │
+                    │                      │
+                    │  Talks about life,   │
+                    │  goals, problems,    │
+                    │  plans, interests    │
+                    └──────────┬───────────┘
+                               │
+                               │ Voice
+                               ▼
+                    ┌──────────────────────┐
+                    │        Embie         │
+                    │                      │
+                    │ Personalized AI      │
+                    │ Character / Guide     │
+                    └──────────┬───────────┘
+                               │
+             ┌─────────────────┼─────────────────┐
+             │                 │                 │
+             ▼                 ▼                 ▼
+        Conversation        Memory          Personality
+          Context          System             System
+             │                 │                 │
+             └─────────────────┼─────────────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │  PERSONALIZED        │
+                    │  RESPONSE            │
+                    │                      │
+                    │ Voice + character +  │
+                    │ relevant memories +  │
+                    │ appropriate tone     │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │  LEARNS OVER TIME    │
+                    │                      │
+                    │ Goals                │
+                    │ Preferences          │
+                    │ Facts                │
+                    │ Patterns             │
+                    │ Emotional context    │
+                    └──────────────────────┘
+```
+
+So the key product loop is:
+
+**Talk → Understand → Remember → Personalize → Help → Learn → Repeat.**
