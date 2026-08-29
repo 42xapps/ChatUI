@@ -7,7 +7,8 @@
 
 import Foundation
 
-actor UpdateQueue {
+@MainActor
+final class UpdateQueue {
 
     private func debug(_ prefix: String) {
 //        print("""
@@ -19,7 +20,6 @@ actor UpdateQueue {
 
     private struct Job {
         let work: @Sendable @MainActor () async -> Void
-        let continuation: CheckedContinuation<Void, Never>
         let transactionContinuation: CheckedContinuation<Void, Never>?
     }
 
@@ -89,26 +89,19 @@ actor UpdateQueue {
     // MARK: - Job scheduling
 
     func createJob(_ work: @escaping @Sendable @MainActor () async -> Void) {
-        Task {
-            await withCheckedContinuation { jobContinuation in
-
-                var txContinuation: CheckedContinuation<Void, Never>? = nil
-
-                if let i = orphanTransactions.indices.first {
-                    let tx = orphanTransactions.remove(at: i)
-                    txContinuation = tx.continuation
-                }
-
-                queue.append(Job(
-                    work: work,
-                    continuation: jobContinuation,
-                    transactionContinuation: txContinuation
-                ))
-
-                debug("createJob")
-                processNextIfNeeded()
-            }
+        var txContinuation: CheckedContinuation<Void, Never>?
+        if let i = orphanTransactions.indices.first {
+            let tx = orphanTransactions.remove(at: i)
+            txContinuation = tx.continuation
         }
+
+        queue.append(Job(
+            work: work,
+            transactionContinuation: txContinuation
+        ))
+
+        debug("createJob")
+        processNextIfNeeded()
     }
 
     // MARK: - Execution
@@ -122,9 +115,9 @@ actor UpdateQueue {
         isProcessing = true
 
         Task {
-            let job = await dequeueJob()
+            let job = dequeueJob()
             await job.work()
-            await completeCurrentJob(job)
+            completeCurrentJob(job)
         }
     }
 
@@ -132,8 +125,7 @@ actor UpdateQueue {
         queue.removeFirst()
     }
 
-    private func completeCurrentJob(_ job: Job) async {
-        job.continuation.resume()
+    private func completeCurrentJob(_ job: Job) {
         job.transactionContinuation?.resume()
 
         isProcessing = false
@@ -145,7 +137,7 @@ actor UpdateQueue {
 }
 
 public final class TableUpdateTransaction {
-    public enum AnimationMode {
+    public enum AnimationMode: Sendable {
         case none
         case keepStable // keep the visible scroll position even when cells are inserted at the beginning, effectively shifting the meaning of the current content offset
         case natural // if scrolled to bottom - insert with standard UITableView animation, if not - keep stable
@@ -162,19 +154,15 @@ public final class TableUpdateTransaction {
     public func callAsFunction(animationMode: AnimationMode = .natural, _ updates: @MainActor @escaping () -> Void) async {
         //print("TableUpdateTransaction callAsFunction animationMode: \(animationMode)")
         // 1. register transaction BEFORE SwiftUI mutation
-        await updateQueue?.startTransaction(animationMode: animationMode)
+        updateQueue?.startTransaction(animationMode: animationMode)
 
         // 2. perform mutation
-        await MainActor.run {
-            updates()
-        }
+        updates()
 
         // 3. give SwiftUI a chance to call updateUIView
         DispatchQueue.main.async {
-            Task {
-                //print("TableUpdateTransaction finishIfNeeded")
-                await self.updateQueue?.finishEarlyIfNeeded()
-            }
+            //print("TableUpdateTransaction finishIfNeeded")
+            self.updateQueue?.finishEarlyIfNeeded()
         }
 
         // 4. wait until either:
