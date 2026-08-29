@@ -221,6 +221,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                 ZStack(alignment: .bottom) {
                     listWithButton
                     inputView
+                        .padding(.bottom, floatingComposerBottomPadding)
                         .background(
                             GeometryReader { proxy in
                                 Color.clear.preference(
@@ -263,8 +264,12 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
     private var scrollToBottomButtonBottomPadding: CGFloat {
         shouldFloatInputView
-            ? floatingComposerHeight + floatingComposerGap
+            ? effectiveFloatingComposerHeight + floatingComposerGap
             : 8
+    }
+
+    private var effectiveFloatingComposerHeight: CGFloat {
+        max(floatingComposerHeight, minimumCompactComposerHeight)
     }
 
     /// A true `ZStack` overlay (not `safeAreaInset`/`safeAreaBar`) lets the message list's own
@@ -280,7 +285,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         // Measured, not fixed. The composer switches to a taller two-row layout once the draft
         // wraps (see `ComposerLayout`) and keeps growing with it, so a constant sized for the
         // compact state leaves the newest messages sitting behind it.
-        let floatingComposerInset = floatingComposerHeight + floatingComposerGap
+        let floatingComposerInset = effectiveFloatingComposerHeight + floatingComposerGap
         // NOTE: top and bottom are vice versa here — the conversation table is upside down.
         params.contentInsets.top = max(params.contentInsets.top, floatingComposerInset)
         return params
@@ -637,6 +642,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
 
 /// Breathing room between the newest message and the floating composer.
 private let floatingComposerGap: CGFloat = 8
+
+/// Space between the composer and the bottom edge of the chat. Kept small so the input sits
+/// low on screen while still clearing the home indicator on most devices.
+private let floatingComposerBottomPadding: CGFloat = 4
+
+/// Fallback until the composer's preference reports a real height. Sized for the compact
+/// `.message` composer: reply strip padding, row insets, card padding, and the 48pt input row.
+private let minimumCompactComposerHeight: CGFloat = 82
 
 /// Reports the floating composer's rendered height up to `ChatView`, so the message list can
 /// inset by however tall it currently is rather than a constant.
