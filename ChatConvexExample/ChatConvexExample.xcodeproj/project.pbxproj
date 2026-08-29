@@ -38,7 +38,6 @@
 /* Begin PBXFileReference section */
 		1B854306EEED78078E8D7BF5 /* ConvexService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexService.swift; sourceTree = "<group>"; };
 		1D15A79DFE121765A6C13D26 /* ChatConvexExample.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ChatConvexExample.entitlements; sourceTree = "<group>"; };
-		314D1000FB108EAD9956FC6E /* ChatUI */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ChatUI; path = ..; sourceTree = SOURCE_ROOT; };
 		31EBB7A3C211D1667D5C469F /* ChatConvexExampleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatConvexExampleApp.swift; sourceTree = "<group>"; };
 		3E1053EC721D6D6CBCAE9C29 /* ChatConvexExample.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ChatConvexExample.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3EAF972F6F7B7D0D5511EE11 /* ConvexDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvexDTO.swift; sourceTree = "<group>"; };
@@ -62,6 +61,7 @@
 		D4ED8D49B6B9E3B582583336 /* AvatarCircle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarCircle.swift; sourceTree = "<group>"; };
 		E85A878461890B5B94334D9F /* ConversationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversationViewModel.swift; sourceTree = "<group>"; };
 		EB804002ED8CE33D8EE2522E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		ECDD563AF60497DA10628F3E /* chatUII */ = {isa = PBXFileReference; lastKnownFileType = folder; name = chatUII; path = ..; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -187,7 +187,7 @@
 		FD3B4148E6F6D8AFB069B453 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				314D1000FB108EAD9956FC6E /* ChatUI */,
+				ECDD563AF60497DA10628F3E /* chatUII */,
 			);
 			name = Packages;
 			sourceTree = "<group>";
@@ -544,8 +544,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/exyte/MediaPicker.git";
 			requirement = {
-				kind = exactVersion;
-				version = 3.3.2;
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.4.6;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
