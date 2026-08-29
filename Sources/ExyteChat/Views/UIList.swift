@@ -162,7 +162,10 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         case .tableOffset(let offset):
             tableView.setContentOffset(CGPoint(x: 0, y: offset), animated: false)
         case .newestMessage:
-            tableView.setContentOffset(CGPoint(x: 0, y: 0), animated: false)
+            tableView.setContentOffset(
+                CGPoint(x: 0, y: -tableView.adjustedContentInset.top),
+                animated: false
+            )
         case .oldestMessage:
             let lastSection = max(tableView.numberOfSections - 1, 0)
             let lastRow = max(tableView.numberOfRows(inSection: lastSection) - 1, 0)
