@@ -128,52 +128,50 @@ struct UIList<MessageContent: View>: UIViewRepresentable {
         context.coordinator.updateInProgress = true
 
         updateQueue.createJob {
-            Task { @MainActor in
-                if needToUpdateSections {
-                    if animationMode == .none
-                        || context.coordinator.sections.isEmpty
-                        || pendingScrollTo != nil { // if we're gonna scroll later, then update cells without animation, and animate scrolling later
-                        updateTableNoAnimation(tableView, context.coordinator)
-                    } else if animationMode == .natural,
-                              tableView.verticalScrollMetrics.isAtMinimum(
-                                tableView.contentOffset.y
-                              ) {
-                        await updateTableWithAnimation(tableView, context.coordinator)
-                    } else {
-                        // if transaction.animationMode == .keepStable
-                        // || (transaction.animationMode == .natural && tableView.contentOffset != .zero) {
-                        await performInsertPreservingOffset(tableView, context.coordinator)
-                    }
+            if needToUpdateSections {
+                if animationMode == .none
+                    || context.coordinator.sections.isEmpty
+                    || pendingScrollTo != nil { // if we're gonna scroll later, then update cells without animation, and animate scrolling later
+                    updateTableNoAnimation(tableView, context.coordinator)
+                } else if animationMode == .natural,
+                          tableView.verticalScrollMetrics.isAtMinimum(
+                              tableView.contentOffset.y
+                          ) {
+                    await updateTableWithAnimation(tableView, context.coordinator)
+                } else {
+                    // if transaction.animationMode == .keepStable
+                    // || (transaction.animationMode == .natural && tableView.contentOffset != .zero) {
+                    await performInsertPreservingOffset(tableView, context.coordinator)
                 }
-
-                if needToScroll, let scrollToParams = pendingScrollTo {
-                    pendingScrollTo = nil // reset to only scroll once
-
-                    let perform = {
-                        performScrollTo(tableView, scrollToParams: scrollToParams)
-                    }
-
-                    if animationMode == .natural,
-                       tableView.verticalScrollMetrics.isAtMinimum(
-                        tableView.contentOffset.y
-                       ) {
-                        await withCheckedContinuation { continuation in
-                            UIView.animate(withDuration: 0.25) {
-                                perform()
-                            } completion: { _ in
-                                continuation.resume()
-                            }
-                        }
-                    } else {
-                        perform()
-                    }
-                }
-
-                tableView.beginUpdates()
-                context.coordinator.updateInProgress = false
-                tableView.endUpdates()
-                tableView.relayoutHeadersFooters()
             }
+
+            if needToScroll, let scrollToParams = pendingScrollTo {
+                pendingScrollTo = nil // reset to only scroll once
+
+                let perform = {
+                    performScrollTo(tableView, scrollToParams: scrollToParams)
+                }
+
+                if animationMode == .natural,
+                   tableView.verticalScrollMetrics.isAtMinimum(
+                       tableView.contentOffset.y
+                   ) {
+                    await withCheckedContinuation { continuation in
+                        UIView.animate(withDuration: 0.25) {
+                            perform()
+                        } completion: { _ in
+                            continuation.resume()
+                        }
+                    }
+                } else {
+                    perform()
+                }
+            }
+
+            tableView.beginUpdates()
+            context.coordinator.updateInProgress = false
+            tableView.endUpdates()
+            tableView.relayoutHeadersFooters()
         }
     }
 
