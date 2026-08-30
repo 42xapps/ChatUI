@@ -470,6 +470,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
         .onChange(of: inputViewCustomizationParameters.areActionsEnabled) {
             configureInputViewModel()
         }
+        .onChange(of: inputViewCustomizationParameters.enabledInputs) {
+            configureInputViewModel()
+        }
         .onChange(
             of: inputViewCustomizationParameters.mediaPickerParameters.selectionParameters
                 .selectionLimit
@@ -485,6 +488,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     private func configureInputViewModel() {
         inputViewModel.configureInputActions(
             enabled: inputViewCustomizationParameters.areActionsEnabled,
+            enabledInputs: inputViewCustomizationParameters.enabledInputs,
             maximumMediaCount: inputViewCustomizationParameters.mediaPickerParameters
                 .selectionParameters.selectionLimit,
             allowsMixedMediaAndGiphy: inputViewCustomizationParameters.allowsMixedMediaAndGiphy

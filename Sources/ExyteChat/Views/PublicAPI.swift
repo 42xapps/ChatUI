@@ -318,6 +318,15 @@ public extension ChatView {
         return view
     }
 
+    /// Selects which visible input types are currently interactive. This is intentionally separate
+    /// from `setAvailableInputs`: apps can preserve their composer layout while capabilities,
+    /// consent, or configuration temporarily make an action unavailable.
+    func setEnabledInputs(_ types: [AvailableInputType]) -> ChatView {
+        var view = self
+        view.inputViewCustomizationParameters.enabledInputs = types
+        return view
+    }
+
     /// Enables or disables the built-in composer's action controls while leaving its text field
     /// editable. Disabled controls stay visible so a draft can continue to be edited while an app
     /// temporarily prevents another send.

@@ -16,6 +16,24 @@ final class InputViewConfigurationTests: XCTestCase {
         XCTAssertTrue(parameters.allowsMixedMediaAndGiphy)
     }
 
+    func testVisibleInputsRemainPresentWhenTheirActionsAreTemporarilyUnavailable() {
+        var parameters = InputViewCustomizationParameters()
+        parameters.availableInputs = [.text, .media, .giphy]
+        parameters.enabledInputs = [.text]
+        let viewModel = InputViewModel()
+        viewModel.configureInputActions(
+            enabled: true,
+            enabledInputs: parameters.enabledInputs,
+            maximumMediaCount: 4,
+            allowsMixedMediaAndGiphy: false
+        )
+
+        XCTAssertEqual(parameters.availableInputs, [.text, .media, .giphy])
+        XCTAssertEqual(parameters.enabledInputs, [.text])
+        XCTAssertFalse(viewModel.canSelectMedia)
+        XCTAssertFalse(viewModel.canSelectGiphy)
+    }
+
     func testDisabledComposerActionsCannotOpenAttachmentPickers() {
         let viewModel = InputViewModel()
         var didSubmit = false

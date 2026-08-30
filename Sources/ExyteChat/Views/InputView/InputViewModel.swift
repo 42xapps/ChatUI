@@ -80,6 +80,7 @@ final class InputViewModel: ObservableObject {
     private var recorder = Recorder()
 
     private var areInputActionsEnabled = true
+    private var enabledInputs = AvailableInputType.allCases
     private var attachmentSelectionLimit = AttachmentSelectionLimit(maximumCount: nil)
     private var allowsMixedMediaAndGiphy = true
     private var isSubmissionInFlight = false
@@ -97,10 +98,12 @@ final class InputViewModel: ObservableObject {
 
     func configureInputActions(
         enabled: Bool,
+        enabledInputs: [AvailableInputType] = AvailableInputType.allCases,
         maximumMediaCount: Int?,
         allowsMixedMediaAndGiphy: Bool
     ) {
         areInputActionsEnabled = enabled
+        self.enabledInputs = enabledInputs
         attachmentSelectionLimit = AttachmentSelectionLimit(maximumCount: maximumMediaCount)
         self.allowsMixedMediaAndGiphy = allowsMixedMediaAndGiphy
 
@@ -194,12 +197,23 @@ final class InputViewModel: ObservableObject {
 
     var canSelectMedia: Bool {
         guard areInputActionsEnabled else { return false }
+        guard enabledInputs.contains(.media) else { return false }
         guard allowsMixedMediaAndGiphy || attachments.giphyMedia == nil else { return false }
         return attachmentSelectionLimit.canAppend(after: attachments.medias.count)
     }
 
     var canSelectGiphy: Bool {
-        areInputActionsEnabled && (allowsMixedMediaAndGiphy || attachments.medias.isEmpty)
+        areInputActionsEnabled
+            && enabledInputs.contains(.giphy)
+            && (allowsMixedMediaAndGiphy || attachments.medias.isEmpty)
+    }
+
+    var canSendCurrentDraft: Bool {
+        guard areInputActionsEnabled else { return false }
+        if attachments.giphyMedia != nil { return enabledInputs.contains(.giphy) }
+        if !attachments.medias.isEmpty { return enabledInputs.contains(.media) }
+        if attachments.recording != nil { return enabledInputs.contains(.audio) }
+        return enabledInputs.contains(.text)
     }
 
     func submitGiphy(_ media: GPHMedia) {
@@ -390,7 +404,7 @@ private extension InputViewModel {
 private extension InputViewModel {
 
     func sendMessage() {
-        guard areInputActionsEnabled else {
+        guard canSendCurrentDraft else {
             // GIPHY selection is an immediate-send action, not a visible staged attachment. If
             // the host locks actions before submission, do not leave hidden media on a later send.
             attachments.giphyMedia = nil

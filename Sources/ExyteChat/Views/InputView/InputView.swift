@@ -59,7 +59,7 @@ public enum InputViewState: Sendable {
     }
 }
 
-public enum AvailableInputType: Sendable {
+public enum AvailableInputType: CaseIterable, Equatable, Sendable {
     case text
     case media
     case audio
@@ -476,7 +476,7 @@ struct InputView: View {
         Group {
             if state.canSend || !isAudioAvailable() {
                 sendButton
-                    .disabled(!state.canSend)
+                    .disabled(!state.canSend || !viewModel.canSendCurrentDraft)
             } else {
                 recordButton
                     .highPriorityGesture(dragGesture())
