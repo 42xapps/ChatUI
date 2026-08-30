@@ -12,10 +12,16 @@ struct TableUpdateTransactionTests {
     func waitsForTableUpdateCompletion() async throws {
         let model = TransactionHarness()
         let host = UIHostingController(rootView: TransactionHarnessView(model: model))
-        let windowScene = try #require(
-            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        )
-        let window = UIWindow(windowScene: windowScene)
+        let window = if let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first
+        {
+            UIWindow(windowScene: windowScene)
+        } else {
+            // Swift package tests can run without a host app/connected scene, especially when the
+            // whole suite runs together. A frame-backed window still exercises the UIKit update.
+            UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        }
         window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
         window.rootViewController = host
         window.isHidden = false

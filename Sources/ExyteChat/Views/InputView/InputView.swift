@@ -66,6 +66,17 @@ public enum AvailableInputType: Sendable {
     case giphy
 }
 
+/// Attachment sources shown by the built-in composer's media menu.
+///
+/// Keep `.media` in ``AvailableInputType`` to enable media attachments, then use this finer-
+/// grained list when an app supports only some sources (for example, photos and camera but not
+/// documents).
+public enum AvailableAttachmentType: CaseIterable, Equatable, Sendable {
+    case photoLibrary
+    case camera
+    case document
+}
+
 public struct InputViewAttachments {
     var medias: [Media] = []
     /// Ready-made previews for photos quick-attached from the fan, keyed by `Media.id`. They let
@@ -87,6 +98,8 @@ struct InputView: View {
     var inputFieldId: UUID
     var style: InputViewStyle
     var availableInputs: [AvailableInputType]
+    var availableAttachmentInputs: [AvailableAttachmentType]
+    var areActionsEnabled: Bool
     var recorderSettings: RecorderSettings = RecorderSettings()
     var localization: ChatLocalization
 
@@ -191,7 +204,9 @@ struct InputView: View {
     /// The quick-attach fan hangs off the `+` button, and `InputView` is also rendered in
     /// `.signature` style *inside* the full screen picker, where a second picker makes no sense.
     private var isQuickAttachEnabled: Bool {
-        style == .message && isMediaAvailable()
+        style == .message
+            && isAttachmentAvailable(.photoLibrary)
+            && viewModel.canSelectMedia
     }
 
     /// Whether the card is showing the compose row that owns the attach chip, rather than the
@@ -229,6 +244,11 @@ struct InputView: View {
             viewModel.recordingPlayer = recordingPlayer
             viewModel.setRecorderSettings(recorderSettings: recorderSettings)
         }
+        .onChange(of: areActionsEnabled) { _, enabled in
+            if !enabled {
+                showAttachMenu = false
+            }
+        }
         .onDrag(towards: .bottom, ofAmount: 100...) {
             keyboardState.resignFirstResponder()
         }
@@ -252,6 +272,7 @@ struct InputView: View {
                             onRemove: viewModel.removeAttachment,
                             removeLabel: localization.removeAttachmentText
                         )
+                        .disabled(!areActionsEnabled)
                     }
 
                     ComposerLayout(
@@ -342,6 +363,8 @@ struct InputView: View {
     private func quickAttachTrigger(_ picker: RecentPhotoPickerContext) -> some View {
         picker.trigger
             .frame(width: Self.controlChipSize, height: Self.controlChipSize)
+            .allowsHitTesting(areActionsEnabled)
+            .opacity(areActionsEnabled ? 1 : 0.45)
             .popover(isPresented: $showAttachMenu) {
                 attachMenuContent
             }
@@ -358,6 +381,9 @@ struct InputView: View {
             Color.clear.frame(width: 1, height: 1)
         } else {
             sendRecordButton
+                .disabled(!areActionsEnabled)
+                .allowsHitTesting(areActionsEnabled)
+                .opacity(areActionsEnabled ? 1 : 0.45)
         }
     }
 
@@ -545,19 +571,34 @@ struct InputView: View {
         .popover(isPresented: $showAttachMenu) {
             attachMenuContent
         }
+        .disabled(!areActionsEnabled)
     }
 
     var attachMenuContent: some View {
         VStack(spacing: 0) {
-            if isMediaAvailable() {
-                attachMenuRow(icon: theme.images.attachMenu.photo, title: localization.photoLibraryText) {
-                    onAction(.photo)
-                }
+            if isAttachmentAvailable(.photoLibrary) {
+                attachMenuRow(
+                    icon: theme.images.attachMenu.photo,
+                    title: localization.photoLibraryText,
+                    enabled: viewModel.canSelectMedia
+                ) { onAction(.photo) }
+            }
+            if isAttachmentAvailable(.photoLibrary),
+                isAttachmentAvailable(.camera) || isAttachmentAvailable(.document)
+            {
                 Divider()
-                attachMenuRow(icon: theme.images.attachMenu.camera, title: localization.cameraText) {
-                    onAction(.camera)
-                }
+            }
+            if isAttachmentAvailable(.camera) {
+                attachMenuRow(
+                    icon: theme.images.attachMenu.camera,
+                    title: localization.cameraText,
+                    enabled: viewModel.canSelectMedia
+                ) { onAction(.camera) }
+            }
+            if isAttachmentAvailable(.camera), isAttachmentAvailable(.document) {
                 Divider()
+            }
+            if isAttachmentAvailable(.document) {
                 attachMenuRow(icon: theme.images.attachMenu.document, title: localization.filesText) {
                     onAction(.document)
                 }
@@ -566,16 +607,23 @@ struct InputView: View {
                 Divider()
             }
             if isGiphyAvailable() {
-                attachMenuRow(icon: theme.images.inputView.sticker, title: localization.giphyText) {
-                    onAction(.giphy)
-                }
+                attachMenuRow(
+                    icon: theme.images.inputView.sticker,
+                    title: localization.giphyText,
+                    enabled: viewModel.canSelectGiphy
+                ) { onAction(.giphy) }
             }
         }
         .frame(width: 220)
         .presentationCompactAdaptation(.popover)
     }
 
-    func attachMenuRow(icon: Image, title: String, action: @escaping () -> Void) -> some View {
+    func attachMenuRow(
+        icon: Image,
+        title: String,
+        enabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
         Button {
             action()
             showAttachMenu = false
@@ -593,6 +641,8 @@ struct InputView: View {
             .padding(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .opacity(enabled ? 1 : 0.45)
     }
 
     var addButton: some View {
@@ -845,7 +895,11 @@ struct InputView: View {
     }
 
     private func isMediaAvailable() -> Bool {
-        return availableInputs.contains(AvailableInputType.media)
+        availableInputs.contains(AvailableInputType.media) && !availableAttachmentInputs.isEmpty
+    }
+
+    private func isAttachmentAvailable(_ type: AvailableAttachmentType) -> Bool {
+        isMediaAvailable() && availableAttachmentInputs.contains(type)
     }
 }
 

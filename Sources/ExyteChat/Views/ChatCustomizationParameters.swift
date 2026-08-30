@@ -74,6 +74,9 @@ struct InputViewCustomizationParameters {
     var externalInputText: String?  // External → Internal
     var onInputTextChange: ((String) -> Void)?  // Internal → External
     var availableInputs: [AvailableInputType] = [.text, .audio, .media]
+    var availableAttachmentInputs = AvailableAttachmentType.allCases
+    var areActionsEnabled = true
+    var allowsMixedMediaAndGiphy = true
     var recorderSettings = RecorderSettings()
     var mediaPickerParameters = MediaPickerParameters()
 }

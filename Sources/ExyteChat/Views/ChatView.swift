@@ -61,7 +61,7 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
     var type: ChatType
     var sections: [MessagesSection]
     var ids: [String]
-    var didSendMessage: (DraftMessage) -> Void
+    var didSendMessage: (DraftMessage) -> DraftSubmissionDisposition
     var didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)?
 
     // MARK: - Simple view builders
@@ -134,8 +134,14 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
             .onChange(of: selectedGiphyMedia) {
                 if let giphyMedia = selectedGiphyMedia {
-                    inputViewModel.attachments.giphyMedia = giphyMedia
-                    inputViewModel.send()
+                    guard inputViewCustomizationParameters.areActionsEnabled else {
+                        selectedGiphyMedia = nil
+                        return
+                    }
+                    // Consume the bridge binding immediately so selecting the same GIF later still
+                    // publishes a change. InputViewModel owns compatibility and submission guards.
+                    selectedGiphyMedia = nil
+                    inputViewModel.submitGiphy(giphyMedia)
                 }
             }
             .onChange(of: inputViewModel.showPicker) { _, newValue in
@@ -402,7 +408,9 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         )
         .onAppear {
-            viewModel.didSendMessage = didSendMessage
+            viewModel.didSendMessage = { draft in
+                _ = didSendMessage(draft)
+            }
             viewModel.inputViewModel = inputViewModel
             viewModel.globalFocusState = globalFocusState
             if chatCustomizationParameters.autoFocusTextInputOnChatOpen {
@@ -413,14 +421,13 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
 
             inputViewModel.didSendMessage = { value in
-                Task { @MainActor in
-                    didSendMessage(value)
-                }
-                if type == .conversation {
+                let disposition = didSendMessage(value)
+                if disposition == .accepted, type == .conversation {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                         self.pendingScrollTo = ScrollToParams(.newestMessage)
                     }
                 }
+                return disposition
             }
         }
     }
@@ -445,6 +452,8 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
                     inputFieldId: viewModel.inputFieldId,
                     style: .message,
                     availableInputs: inputViewCustomizationParameters.availableInputs,
+                    availableAttachmentInputs: inputViewCustomizationParameters.availableAttachmentInputs,
+                    areActionsEnabled: inputViewCustomizationParameters.areActionsEnabled,
                     recorderSettings: inputViewCustomizationParameters.recorderSettings,
                     localization: chatCustomizationParameters.localization
                 )
@@ -454,8 +463,32 @@ public struct ChatView<MessageContent: View, InputViewContent: View, MenuAction:
             }
         }
         .environmentObject(globalFocusState)
-        .onAppear(perform: inputViewModel.onStart)
+        .onAppear {
+            configureInputViewModel()
+            inputViewModel.onStart()
+        }
+        .onChange(of: inputViewCustomizationParameters.areActionsEnabled) {
+            configureInputViewModel()
+        }
+        .onChange(
+            of: inputViewCustomizationParameters.mediaPickerParameters.selectionParameters
+                .selectionLimit
+        ) {
+            configureInputViewModel()
+        }
+        .onChange(of: inputViewCustomizationParameters.allowsMixedMediaAndGiphy) {
+            configureInputViewModel()
+        }
         .onDisappear(perform: inputViewModel.onStop)
+    }
+
+    private func configureInputViewModel() {
+        inputViewModel.configureInputActions(
+            enabled: inputViewCustomizationParameters.areActionsEnabled,
+            maximumMediaCount: inputViewCustomizationParameters.mediaPickerParameters
+                .selectionParameters.selectionLimit,
+            allowsMixedMediaAndGiphy: inputViewCustomizationParameters.allowsMixedMediaAndGiphy
+        )
     }
 
     func messageMenu(_ row: MessageRow) -> some View {

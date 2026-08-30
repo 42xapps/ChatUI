@@ -21,6 +21,41 @@ struct AttachmentsEditor: View {
     var localization: ChatLocalization
 
     @State private var currentFullscreenMedia: Media?
+    @StateObject private var sessionSelectionParameters: SelectionParameters
+
+    init(
+        inputViewModel: InputViewModel,
+        mediaPickerParameters: MediaPickerParameters,
+        localization: ChatLocalization
+    ) {
+        self.inputViewModel = inputViewModel
+        self.mediaPickerParameters = mediaPickerParameters
+        self.localization = localization
+        _sessionSelectionParameters = StateObject(
+            wrappedValue: Self.makeSessionSelectionParameters(
+                from: mediaPickerParameters.selectionParameters,
+                remainingLimit: inputViewModel.remainingMediaSelectionLimit
+            )
+        )
+    }
+
+    static func makeSessionSelectionParameters(
+        from source: SelectionParameters,
+        remainingLimit: Int?
+    ) -> SelectionParameters {
+        SelectionParameters(
+            mediaType: source.mediaType,
+            selectionStyle: source.selectionStyle,
+            selectionLimit: remainingLimit,
+            showFullscreenPreview: source.showFullscreenPreview
+        )
+    }
+
+    private var sessionMediaPickerParameters: MediaPickerParameters {
+        var parameters = mediaPickerParameters
+        parameters.selectionParameters = sessionSelectionParameters
+        return parameters
+    }
 
     var showingAlbums: Bool {
         inputViewModel.mediaPickerMode == .albums
@@ -69,7 +104,7 @@ struct AttachmentsEditor: View {
             }
             .fullscreenMedia($currentFullscreenMedia)
             .pickerMode($inputViewModel.mediaPickerMode)
-            .setMediaPickerParameters(mediaPickerParameters)
+            .setMediaPickerParameters(sessionMediaPickerParameters)
             .padding(.top)
             .background(theme.colors.mainBG)
             .ignoresSafeArea(.all)

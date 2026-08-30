@@ -6,6 +6,14 @@ import Foundation
 import GiphyUISDK
 import ExyteMediaPicker
 
+/// Tells the built-in composer whether it may clear editable text and staged local media after a
+/// submission attempt. GIPHY selections are immediate-send actions and never remain hidden in a
+/// rejected draft.
+public enum DraftSubmissionDisposition: Equatable, Sendable {
+    case accepted
+    case keepDraft
+}
+
 public struct DraftMessage: Sendable {
     public var id: String?
     public let text: String
@@ -31,4 +39,3 @@ public struct DraftMessage: Sendable {
         self.createdAt = createdAt
     }
 }
-

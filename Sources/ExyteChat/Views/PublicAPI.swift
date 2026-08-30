@@ -310,6 +310,32 @@ public extension ChatView {
         return view
     }
 
+    /// Selects which media sources appear in the built-in composer's attachment menu.
+    /// The default remains photo library, camera, and document for source compatibility.
+    func setAvailableAttachmentInputs(_ types: [AvailableAttachmentType]) -> ChatView {
+        var view = self
+        view.inputViewCustomizationParameters.availableAttachmentInputs = types
+        return view
+    }
+
+    /// Enables or disables the built-in composer's action controls while leaving its text field
+    /// editable. Disabled controls stay visible so a draft can continue to be edited while an app
+    /// temporarily prevents another send.
+    func inputViewActionsEnabled(_ enabled: Bool) -> ChatView {
+        var view = self
+        view.inputViewCustomizationParameters.areActionsEnabled = enabled
+        return view
+    }
+
+    /// Controls whether one draft may combine local media and a GIPHY selection. The default is
+    /// `true` for source compatibility; set this to `false` when the app's message contract treats
+    /// image and GIPHY bodies as mutually exclusive.
+    func setAllowsMixedMediaAndGiphy(_ allowed: Bool) -> ChatView {
+        var view = self
+        view.inputViewCustomizationParameters.allowsMixedMediaAndGiphy = allowed
+        return view
+    }
+
     func setRecorderSettings(_ settings: RecorderSettings) -> ChatView {
         var view = self
         view.inputViewCustomizationParameters.recorderSettings = settings

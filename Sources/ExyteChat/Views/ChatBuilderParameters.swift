@@ -81,10 +81,50 @@ extension ChatView {
         },
         didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)? = nil
     ) {
+        self.init(
+            messages: messages,
+            chatType: chatType,
+            replyMode: replyMode,
+            didSubmitMessage: { draft in
+                Task { @MainActor in
+                    didSendMessage(draft)
+                }
+                return .accepted
+            },
+            messageBuilder: messageBuilder,
+            inputViewBuilder: inputViewBuilder,
+            messageMenuAction: messageMenuAction,
+            didUpdateAttachmentStatus: didUpdateAttachmentStatus
+        )
+    }
+
+    /// Creates a chat whose built-in composer clears a draft only after the app accepts it.
+    /// Return `.keepDraft` for synchronous validation or admission failures so editable text and
+    /// staged local media remain available without an app-owned composer.
+    public init(
+        messages: [Message],
+        chatType: ChatType = .conversation,
+        replyMode: ReplyMode = .quote,
+        didSubmitMessage: @escaping (DraftMessage) -> DraftSubmissionDisposition,
+        @ViewBuilder messageBuilder: @escaping (_ params: MessageBuilderParameters) -> MessageContent = { _ in
+            DummyView()
+        },
+        @ViewBuilder inputViewBuilder: @escaping (_ params: InputViewBuilderParameters) -> InputViewContent = { _ in
+            DummyView()
+        },
+        messageMenuAction: @escaping (
+            _ selectedMenuAction: MenuAction,
+            _ defaultActionClosure: @escaping (Message, DefaultMessageMenuAction) -> Void,
+            _ message: Message
+        ) -> Void = { (selectedMenuAction: DefaultMessageMenuAction, defaultActionClosure, message) in
+            defaultActionClosure(message, selectedMenuAction)
+        },
+        didUpdateAttachmentStatus: ((AttachmentUploadUpdate) -> Void)? = nil
+    ) {
         self.type = chatType
         self.sections = ChatView.mapMessages(messages, chatType: chatType, replyMode: replyMode)
         self.ids = messages.map { $0.id }
-        self.didSendMessage = didSendMessage
+        self.didSendMessage = didSubmitMessage
         self.messageBuilder = messageBuilder
         self.inputViewBuilder = inputViewBuilder
         self.messageMenuAction = messageMenuAction

@@ -327,6 +327,10 @@ ChatView(messages: viewModel.messages) { draft in
     - `.media`    
     - `.audio`    
     - `.giphy`    
+`setAvailableAttachmentInputs` - choose which sources the built-in media menu shows: `.photoLibrary`, `.camera`, and/or `.document`; all three remain enabled by default
+`inputViewActionsEnabled` - temporarily disable send and attachment actions without disabling or hiding the text field
+`setAllowsMixedMediaAndGiphy` - keep the source-compatible default or make local media and GIPHY mutually exclusive when the app contract uses one body kind per message
+`didSubmitMessage` initializer - return `.accepted` to clear the built-in draft or `.keepDraft` to retain editable text and photo media after a synchronous rejection; immediate GIPHY selections are cleared so they cannot remain invisibly attached; the existing `didSendMessage` initializer keeps its original clear-after-send behavior
 `setRecorderSettings` - customize audio recorder settings    
 `assetsPickerLimit` - set a limit for MediaPicker built into the library    
 `setMediaPickerSelectionParameters` - a struct holding MediaPicker selection parameters (selection limit, media type, selection style, etc.)    
